@@ -194,6 +194,7 @@ class Application : public QApplication {
 
     void updateIsRunning(bool running);
     bool updatesAreAllowed() const;
+    LaunchController* launchController(const QString& instanceId) const;
 
     void ShowGlobalSettings(class QWidget* parent, QString openPage = QString());
 
@@ -204,6 +205,7 @@ class Application : public QApplication {
 
    signals:
     void updateAllowedChanged(bool status);
+    void instanceLaunchChanged();
     void globalSettingsAboutToOpen();
     void globalSettingsApplied();
     int currentCatChanged(int index);

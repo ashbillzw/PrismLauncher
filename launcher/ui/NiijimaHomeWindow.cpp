@@ -23,12 +23,15 @@
 #include <QSignalBlocker>
 #include <QStyleOptionButton>
 #include <QStylePainter>
+#include <QTimer>
 #include <QtMath>
 #include <QVBoxLayout>
 #include <QWindow>
 #include "Application.h"
 #include "InstanceImportTask.h"
 #include "InstanceList.h"
+#include "LaunchController.h"
+#include "launch/LaunchTask.h"
 #include "MMCTime.h"
 #include "StringUtils.h"
 #include "minecraft/MinecraftInstance.h"
@@ -39,6 +42,13 @@
 #include "settings/SettingsObject.h"
 #include "ui/MainWindow.h"
 #include "ui/dialogs/MSALoginDialog.h"
+
+#ifdef Q_OS_WIN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 namespace {
 constexpr int kTitleBarHeight = 46;
@@ -51,7 +61,7 @@ public:
     QSize sizeHint() const override
     {
         ensurePolished();
-        const auto bounds = QFontMetricsF(font()).tightBoundingRect(text());
+        const auto bounds = QFontMetricsF(font()).tightBoundingRect(QStringLiteral("启动游戏"));
         const qreal margin = QFontInfo(font()).pixelSize() * 0.6;
         return QSize(qCeil(bounds.width() + 2 * margin) + 2, qCeil(bounds.height() + 2 * margin) + 2);
     }
@@ -67,9 +77,16 @@ protected:
         option.text.clear();
         QStylePainter painter(this);
         painter.drawControl(QStyle::CE_PushButton, option);
-        painter.setFont(font());
+        auto labelFont = font();
+        if (label.size() > 4) {
+            const auto width = QFontMetricsF(labelFont).tightBoundingRect(QStringLiteral("启动游戏")).width();
+            labelFont.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+            const auto plainWidth = QFontMetricsF(labelFont).tightBoundingRect(label).width();
+            labelFont.setLetterSpacing(QFont::AbsoluteSpacing, (width - plainWidth) / (label.size() - 1));
+        }
+        painter.setFont(labelFont);
         painter.setPen(isEnabled() ? QColor(Qt::white) : QColor("#aab0ba"));
-        const auto bounds = QFontMetricsF(font()).tightBoundingRect(label);
+        const auto bounds = QFontMetricsF(labelFont).tightBoundingRect(label);
         painter.drawText(QRectF(rect()).center() - bounds.center(), label);
     }
 };
@@ -158,6 +175,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 36px; font-weight: 700; letter-spacing: 11px; padding: 0; }
         QWidget#homeBody QPushButton#primary:hover { background: #ffad28; }
         QWidget#homeBody QPushButton#primary:pressed { background: #de8600; }
+        QWidget#homeBody QPushButton#primary[running="true"] { background: #bb8c46; border-color: #d7ac70; }
+        QWidget#homeBody QPushButton#primary[running="true"]:hover { background: #cb9c56; }
+        QWidget#homeBody QPushButton#primary[running="true"]:pressed { background: #a57a38; }
         QWidget#homeBody QPushButton#prism { background: rgba(84, 75, 70, 205); border-color: rgba(194, 181, 166, 130); border-radius: 8px; font-size: 13px; padding: 8px 14px; }
         QWidget#homeBody QPushButton#prism:hover { background: rgba(105, 94, 86, 230); border-color: rgba(225, 213, 198, 170); }
         QWidget#homeBody QPushButton#prism:pressed { background: rgba(66, 59, 53, 235); }
@@ -234,6 +254,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         if (m_instances->currentIndex() >= 0)
             APPLICATION->settings()->set("NiijimaPreferredInstance", m_instances->currentData().toString());
         refreshPackVersion();
+        refreshPrimaryAction();
     });
     auto* actions = new QHBoxLayout();
     actions->setSpacing(12);
@@ -269,6 +290,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     layout->addLayout(actions);
     root->addWidget(body, 1);
     connect(APPLICATION->instances(), &InstanceList::instancesChanged, this, &NiijimaHomeWindow::refresh);
+    connect(APPLICATION, &Application::instanceLaunchChanged, this, &NiijimaHomeWindow::refreshPrimaryAction);
     connect(APPLICATION->instances(), &InstanceList::instanceCommitted, this, [this](const InstanceTask* task, const QString& id) {
         if (task == m_import) {
             m_committedId = id;
@@ -362,8 +384,7 @@ void NiijimaHomeWindow::refresh()
     if (index >= 0)
         s->set("NiijimaPreferredInstance", m_instances->currentData().toString());
     refreshPackVersion();
-    m_primary->setText(index >= 0 ? QStringLiteral("启动游戏") : QStringLiteral("下载游戏"));
-    m_primary->setEnabled(true);
+    refreshPrimaryAction();
     m_cancel->hide();
     m_progress->hide();
     m_details->clear();
@@ -371,6 +392,71 @@ void NiijimaHomeWindow::refresh()
     m_status->clear();
     m_status->hide();
 }
+void NiijimaHomeWindow::refreshPrimaryAction()
+{
+    if (m_task && m_task->isRunning())
+        return;
+    auto* instance = APPLICATION->instances()->getInstanceById(m_instances->currentData().toString());
+    bool launching = false;
+    bool running = false;
+    if (instance) {
+        connect(instance, &BaseInstance::launchTaskChanged, this, &NiijimaHomeWindow::refreshPrimaryAction, Qt::UniqueConnection);
+        auto* task = instance->getLaunchTask();
+        if (task)
+            connect(task, &LaunchTask::readyForLaunch, this, &NiijimaHomeWindow::refreshPrimaryAction, Qt::UniqueConnection);
+        auto* controller = APPLICATION->launchController(instance->id());
+        launching = m_loginInstance == instance->id() || (controller && !controller->isFinished());
+        running = instance->isRunning() && task && task->pid() > 0;
+    }
+    m_primary->setText(running ? QStringLiteral("打开控制台")
+                              : launching ? QStringLiteral("正在启动")
+                                          : instance ? QStringLiteral("启动游戏") : QStringLiteral("下载游戏"));
+    m_primary->setEnabled(!launching || running);
+    if (m_primary->property("running").toBool() != running) {
+        m_primary->setProperty("running", running);
+        m_primary->style()->unpolish(m_primary);
+        m_primary->style()->polish(m_primary);
+        m_primary->update();
+    }
+}
+
+void NiijimaHomeWindow::watchGameWindow(MinecraftInstance* instance)
+{
+#ifdef Q_OS_WIN
+    auto* timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this, timer, instance = QPointer<MinecraftInstance>(instance)] {
+        if (!instance || !APPLICATION->launchController(instance->id())) {
+            timer->deleteLater();
+            return;
+        }
+        auto* task = instance->getLaunchTask();
+        if (!instance->isRunning() || !task || task->pid() <= 0)
+            return;
+        struct WindowSearch { DWORD pid; HWND window = nullptr; } search{static_cast<DWORD>(task->pid())};
+        EnumWindows([](HWND window, LPARAM parameter) -> BOOL {
+            auto& target = *reinterpret_cast<WindowSearch*>(parameter);
+            DWORD pid = 0;
+            GetWindowThreadProcessId(window, &pid);
+            if (pid != target.pid || !IsWindowVisible(window) || GetWindow(window, GW_OWNER) ||
+                (GetWindowLongPtrW(window, GWL_EXSTYLE) & WS_EX_TOOLWINDOW))
+                return TRUE;
+            target.window = window;
+            return FALSE;
+        }, reinterpret_cast<LPARAM>(&search));
+        if (!search.window)
+            return;
+        AllowSetForegroundWindow(search.pid);
+        SetForegroundWindow(search.window);
+        if (isVisible())
+            showMinimized();
+        timer->deleteLater();
+    });
+    timer->start(500);
+#else
+    Q_UNUSED(instance);
+#endif
+}
+
 void NiijimaHomeWindow::refreshPackVersion()
 {
     auto* instance = APPLICATION->instances()->getInstanceById(m_instances->currentData().toString());
@@ -412,13 +498,18 @@ void NiijimaHomeWindow::primaryAction()
     const auto id = settings->get("NiijimaPreferredInstance").toString();
     if (auto* inst = APPLICATION->instances()->getInstanceById(id)) {
         MinecraftAccountPtr account;
-        if (inst->canLaunch()) {
+        const bool starting = inst->canLaunch();
+        if (starting) {
             auto* accounts = APPLICATION->accounts();
             bool hasMicrosoftAccount = false;
             for (int i = 0; i < accounts->count(); ++i)
                 hasMicrosoftAccount |= accounts->at(i)->accountType() == AccountType::MSA;
             if (!hasMicrosoftAccount) {
+                m_loginInstance = id;
+                refreshPrimaryAction();
                 account = MSALoginDialog::newAccount(this);
+                m_loginInstance.clear();
+                refreshPrimaryAction();
                 if (!account)
                     return;
                 accounts->addAccount(account);
@@ -426,7 +517,8 @@ void NiijimaHomeWindow::primaryAction()
                     accounts->setDefaultAccount(account);
             }
         }
-        APPLICATION->launch(inst, LaunchMode::Normal, nullptr, account);
+        if (APPLICATION->launch(inst, LaunchMode::Normal, nullptr, account) && starting)
+            watchGameWindow(inst);
         return;
     }
     const auto& local = APPLICATION->localTest();

@@ -11,6 +11,7 @@ class QPushButton;
 class QProgressBar;
 class QComboBox;
 class InstanceTask;
+class MinecraftInstance;
 class NiijimaHomeWindow : public QWidget {
     Q_OBJECT
    public:
@@ -26,6 +27,8 @@ class NiijimaHomeWindow : public QWidget {
    private:
     void refresh();
     void refreshPackVersion();
+    void refreshPrimaryAction();
+    void watchGameWindow(MinecraftInstance* instance);
     void primaryAction();
     void onPrismClosing();
     void showDownloadError(const QString& message, const QString& details);
@@ -44,5 +47,6 @@ class NiijimaHomeWindow : public QWidget {
     QPointer<Task> m_task;
     QPointer<InstanceTask> m_import;
     QString m_committedId;
+    QString m_loginInstance;
     QHash<QUuid, TaskStepProgress> m_transfers;
 };

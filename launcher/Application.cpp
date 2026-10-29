@@ -1631,6 +1631,13 @@ bool Application::openJsonEditor(const QString& filename)
     return DesktopServices::run(m_settings->get("JsonEditor").toString(), { file });
 }
 
+LaunchController* Application::launchController(const QString& instanceId) const
+{
+    QMutexLocker locker(&m_instanceExtrasMutex);
+    const auto it = m_instanceExtras.find(instanceId);
+    return it == m_instanceExtras.end() ? nullptr : it->second.controller.get();
+}
+
 bool Application::launch(MinecraftInstance* instance,
                          LaunchMode mode,
                          MinecraftTarget::Ptr targetToJoin,
@@ -1666,6 +1673,8 @@ bool Application::launch(MinecraftInstance* instance,
         connect(controller.get(), &LaunchController::finished, this, &Application::controllerFinished);
         addRunningInstance();
         QMetaObject::invokeMethod(controller.get(), &Task::start, Qt::QueuedConnection);
+        locker.unlock();
+        emit instanceLaunchChanged();
         return true;
     } else if (instance->isRunning()) {
         showInstanceWindow(instance, "console");
@@ -1756,6 +1765,8 @@ void Application::controllerFinished()
     }
     extras.controller.reset();
     subRunningInstance();
+    locker.unlock();
+    emit instanceLaunchChanged();
 
     // quit when there are no more windows.
     if (shouldExitNow()) {

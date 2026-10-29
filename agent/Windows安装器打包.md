@@ -133,3 +133,13 @@ NiijimaLauncher 署名为 AshBill 和 GPT-6 Astra（AI 开发协作）。源码�
 - 按用户既有授权在构建完成后分 UI 与镜像两组提交；不 push，需用户自行公开对应源码。构建早于这两个提交，程序内 Git HEAD 仍是构建时值，不能代表尚未写入的提交。
 
 补充无窗口渲染检查：使用 Qt 6.11.2 的 offscreen 平台和当前 SVG，在 DPR 1、1.5、2 下按 HomeWordmark 的 444×110 / QIcon::paint 绘制；三种缩放的四字均完整，透明四边未触达，PNG 已目视核查。此检查验证字标绘制，不替代完整启动器布局/交互验收。PNG、results.json 和 helper 位于仓库外 `工具/prism-build/title-render-regression/`；未打开任何窗口。
+
+## 2026-10-29 Regular 外观与数字版本索引构建完成
+
+- 用户明确要求“构建”后执行。Release 主程序、filelink 和 LauncherTests 编译成功；`install-niijima/niijima-launcher.exe` 为 **41,542,144 字节**，已确认二进制包含 `packs/latest.json`、`NiijimaPackVersionId` 和 Regular 字体资源入口。
+- Windows 安装器已生成到仓库外 `本地资源/启动器安装器/2026-10-29/NiijimaLauncher-Setup.exe`，**31,902,037 字节**；前一安装器保留在同目录“历史”。未执行安装器或打开启动器窗口。
+- **CTest 23/23 通过**，包含新 `NiijimaPackIndex` 测试，覆盖数字最大 ID、指定 ID、quint64 边界、中文/空格及字面转义文件名、非法路径和 JSON。继续排除已知会触发弹窗的 FileSystem。未重复运行未改动的镜像 Python 测试。
+- 独立 Qt offscreen 检查覆盖 960×600 / 780×510、DPR 1 / 1.5 / 2，以及下载/启动文案：无裁切，实际字距18 px，左右墨迹留白差≤0.67逻辑像素，两个按钮齐底；36 px 主按钮实测约242×81逻辑像素。副标题实际加载 Zen Maru Gothic Regular / OS2 weight400；46 px顶栏、18 px标题组间距、统一blur18无遮罩均取当前源码。
+- offscreen 仅验证仓库外提取的当前视觉组件和布局，没有连接实际账号、下载或版本状态；不能视作完整启动器交互验收。PNG/记录位于仓库外 `工具/prism-build/home-polish-regression/`。构建/CTest/安装器日志为 `工具/prism-build/pack-index-ui-*.log`。
+- 正式索引部署规则见《整合包版本索引》：上传 `packs/latest.json` 及它指向的 `新岛铁道 v1.6.zip`。本轮仅核对本地索引源与交付副本一致，没有上传或验证线上索引/包，未实际安装游戏。固定镜像归档不需重打。
+- 按既有授权，构建完成后分字体资源、首页与版本索引两组本地提交。源码提交晚于构建，程序内嵌 Git HEAD 为构建时值；发布前由用户 push 对应源码，agent 不 push。

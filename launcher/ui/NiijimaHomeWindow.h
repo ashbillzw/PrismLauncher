@@ -27,7 +27,8 @@ class NiijimaHomeWindow : public QWidget {
     void refreshPackVersion();
     void primaryAction();
     void onPrismClosing();
-    void configure();
+    void showDownloadError(const QString& message, const QString& details);
+    void startReleaseLookup(const QUrl& indexUrl, const QString& requestedId);
     void remember(const QString& id);
     void startImport(const QUrl& url);
     QPixmap m_frostedBackground;

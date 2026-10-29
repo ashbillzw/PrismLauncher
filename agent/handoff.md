@@ -2,21 +2,25 @@
 
 ## 当前迭代约定（2026-10-29 用户明确要求）
 
+当前版本已按用户明确要求构建：顶栏/标题组/按钮微调、统一blur18无遮罩、内置 Zen Maru Gothic Regular、移除地址弹窗、packs/latest.json 数字 ID 版本选择，均已进入 EXE/安装器。CTest 23/23 与独立 offscreen 视觉检查通过；实际索引部署和游戏安装仍待验证，详见末节。后续修改仍需用户明确要求才构建。
+
+产品交互约束：开发时缺信息先与用户确认方案，不得把问题转成未经用户要求的产品配置窗口或新流程；保留配置文件覆盖即可。用户已确认多版本 JSON 以数字字符串 ID 为键，默认最大 ID，可配置指定 ID。
+
 当前唯一镜像交付为仓库外 `本地资源/Prism镜像部署/上传即用-20261029/niijima-mirror.tar.gz`。用户只需上传到既有 `minecraft/niijima-launcher/` 后原地解压；包内自带 `niijima-mirror/`，没有 `publish/`。对应镜像 URL 已作为 Niijima 品牌默认值内置并构建，等待用户部署；旧包及补丁方案不再使用。详见《copyparty镜像准备》顶部。
 
-本轮已按明确指示构建：修复字标 DPI 裁切、34 px/2 px 字距和加宽按钮、内置最终镜像默认值，均已进入新的测试 EXE 和安装器；具体尺寸及验证结果见末节。后续修改仍需用户明确指示才构建。
+此前构建完成：修复字标 DPI 裁切、34 px/2 px 字距和加宽按钮、内置最终镜像默认值，均已进入新的测试 EXE 和安装器；具体尺寸及验证结果见末节。后续修改仍需用户明确指示才构建。
 
 - 修改后先保留源码/文档，**只有用户明确指示构建时才配置、编译、收集运行目录或重打安装器**；未构建的回复应明确写“未构建”。不要因代码修改自动触发 CMake/Ninja/NSIS。
 - 用户明确构建后，完成适用验证，再按功能/依赖关系写一个或多个本地 commit，并提醒用户将对应源码 push 到公开仓库。用户已授权这次后续构建完成后的分类提交；展示分组 diff 与验证结果，不重复索取相同授权。未相关的其他工作另行判断。
 - Agent 不执行 push，不创建远端发布。源码 URL 为 `https://github.com/ashbillzw/PrismLauncher`；commit 不等于 push，源链接存在不等于云端已含本地修改。
-- 当前可直接运行的成品为 `install-niijima/niijima-launcher.exe`（2026-10-29 默认镜像与 DPI 修复版），与 DLL、Qt 插件等配套使用。本轮截图、署名、文件名和图标分离已包含；暂不自动显示启动器或安装器窗口。
+- 当前可直接运行的成品为 `install-niijima/niijima-launcher.exe`（2026-10-29 Regular 外观与数字版本索引版），与 DLL、Qt 插件等配套使用。本轮截图、署名、文件名和图标分离已包含；暂不自动显示启动器或安装器窗口。
 
 
-更新：2026-10-29。仓库 `D:/mydata/Repositories/PrismLauncher`，当前分支 `develop`。此前镜像与启动器工作已分别提交为 `2e5240046`、`4cbef888e`；本次 DPI 修复开始时工作区干净，按本地缓存的 `origin/develop` 为 ahead 2。本轮 UI 修复已提交 `0b67ec0e5`，镜像默认配置及最终交接随本节所在提交保存；构建完成后才提交。未 fetch 或 push，最新 ahead/工作区状态以本地 Git 查询为准，不能把缓存远端引用当作刚查询的云端状态。后文未提交等状态为对应历史迭代记录，以本节及末节为准。
+更新：2026-10-29。仓库 `D:/mydata/Repositories/PrismLauncher`，当前分支 `develop`。本轮构建前基线为 `78a1aa051`，实施时与本地缓存的 `origin/develop` 对齐；本轮 Regular 资源及首页/版本索引在构建完成后分组提交。未 fetch 或 push，最新工作区和 ahead 状态以本地 Git 查询为准；后文未提交/未构建等为对应历史迭代记录，以本节及末节为准。
 
 ## 当前工作与用户决定
 
-制作新岛铁道专用开屏，复用原整合包安装和启动路径。镜像用现有 `MetaURLOverride` / `ResourceURLOverride` 加改写后的服务端元数据，**不修改游戏下载代码**。镜像 URL 已固定并内置，整合包 ZIP URL 仍待确定；背景使用用户确认的确定版图片，加磨砂玻璃层（2026-10-29）；允许自动下载/切换 Java，账号登录留到首次启动游戏。
+制作新岛铁道专用开屏，复用原整合包安装和启动路径。镜像用现有 `MetaURLOverride` / `ResourceURLOverride` 加改写后的服务端元数据，**不修改游戏下载代码**。镜像 URL 已固定并内置；包目录采用已确认的 packs/latest.json 数字 ID 索引（已构建）；背景使用用户确认的确定版图片，统一轻微模糊且不加遮罩（2026-10-29）；允许自动下载/切换 Java，账号登录留到首次启动游戏。
 
 **目前不要启动会显示窗口的程序。用户要求等其回到电脑前再继续可视化验证。** 本次测试进程已退出。不要把 Start-Process 的 Hidden 当成保证 GUI 不会显示的机制。
 
@@ -24,6 +28,7 @@
 
 - [启动器初步计划](启动器初步计划.md)：最新需求及原 PDF 视觉约定。
 - [开屏实现与验证](开屏实现与验证.md)：代码接线、配置、测试记录、未完成验收。
+- [整合包版本索引](整合包版本索引.md)：packs 目录、数字 ID 选择规则、发布 JSON 与配置项。
 - [copyparty镜像准备](copyparty镜像准备.md)：目录、完整清单位置、官方源、下载脚本。
 - [Windows安装器打包](Windows安装器打包.md)：当前 NiijimaLauncher 安装器、系统隔离与确切编译命令。
 - [本机构建记录](本机构建记录.md)：Qt/VS/JDK 路径及历史辅助程序弹窗问题。
@@ -150,3 +155,13 @@
 - 按用户既有授权在构建完成后分 UI 与镜像两组提交；不 push，需用户自行公开对应源码。构建早于这两个提交，程序内 Git HEAD 仍是构建时值，不能代表尚未写入的提交。
 
 补充无窗口渲染检查：使用 Qt 6.11.2 的 offscreen 平台和当前 SVG，在 DPR 1、1.5、2 下按 HomeWordmark 的 444×110 / QIcon::paint 绘制；三种缩放的四字均完整，透明四边未触达，PNG 已目视核查。此检查验证字标绘制，不替代完整启动器布局/交互验收。PNG、results.json 和 helper 位于仓库外 `工具/prism-build/title-render-regression/`；未打开任何窗口。
+
+## 2026-10-29 Regular 外观与数字版本索引构建完成
+
+- 用户明确要求“构建”后执行。Release 主程序、filelink 和 LauncherTests 编译成功；`install-niijima/niijima-launcher.exe` 为 **41,542,144 字节**，已确认二进制包含 `packs/latest.json`、`NiijimaPackVersionId` 和 Regular 字体资源入口。
+- Windows 安装器已生成到仓库外 `本地资源/启动器安装器/2026-10-29/NiijimaLauncher-Setup.exe`，**31,902,037 字节**；前一安装器保留在同目录“历史”。未执行安装器或打开启动器窗口。
+- **CTest 23/23 通过**，包含新 `NiijimaPackIndex` 测试，覆盖数字最大 ID、指定 ID、quint64 边界、中文/空格及字面转义文件名、非法路径和 JSON。继续排除已知会触发弹窗的 FileSystem。未重复运行未改动的镜像 Python 测试。
+- 独立 Qt offscreen 检查覆盖 960×600 / 780×510、DPR 1 / 1.5 / 2，以及下载/启动文案：无裁切，实际字距18 px，左右墨迹留白差≤0.67逻辑像素，两个按钮齐底；36 px 主按钮实测约242×81逻辑像素。副标题实际加载 Zen Maru Gothic Regular / OS2 weight400；46 px顶栏、18 px标题组间距、统一blur18无遮罩均取当前源码。
+- offscreen 仅验证仓库外提取的当前视觉组件和布局，没有连接实际账号、下载或版本状态；不能视作完整启动器交互验收。PNG/记录位于仓库外 `工具/prism-build/home-polish-regression/`。构建/CTest/安装器日志为 `工具/prism-build/pack-index-ui-*.log`。
+- 正式索引部署规则见《整合包版本索引》：上传 `packs/latest.json` 及它指向的 `新岛铁道 v1.6.zip`。本轮仅核对本地索引源与交付副本一致，没有上传或验证线上索引/包，未实际安装游戏。固定镜像归档不需重打。
+- 按既有授权，构建完成后分字体资源、首页与版本索引两组本地提交。源码提交晚于构建，程序内嵌 Git HEAD 为构建时值；发布前由用户 push 对应源码，agent 不 push。

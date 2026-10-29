@@ -9,7 +9,7 @@
 - 最终镜像根固定为 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/`，所有元数据已在本地按此 URL 离线定稿。**没有 `/publish/`**。
 - `MetaURLOverride=https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/meta/v1/`
 - `ResourceURLOverride=https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/assets/`
-- `NiijimaPackUrl` 另按正式整合包的真实地址设置；本包不含 `pack.zip`，不能把生成器建议的 `packs/pack.zip` 当作已存在资源。Java 下载和账号服务仍沿用原流程。
+- 整合包发布与镜像分开：用户已确认在同级 `packs/latest.json` 保存多个数字 ID 记录，默认下载最大 ID 的文件；首项为 `新岛铁道 v1.6.zip`，见《整合包版本索引》。相应源码已构建，版本索引测试通过；线上 JSON/ZIP 仍需维护者上传。本镜像归档不含 ZIP 或发布索引，无需因这次功能修改重新打镜像包。Java 下载和账号服务仍沿用原流程。
 - 交付目录另有包外极简 `部署说明.md`，留本地供用户阅读，不需上传。此前 `niijima-mirror-mc1.20.1-forge47.4.6-20261029.tar.gz`、`仅部署文件-20261029/` 内的完整包和补丁均已被本次单包替代，未来 agent 不再要求用户使用它们。
 
 启动器默认值与本包已对齐并完成构建：仅 Niijima 品牌在设置键缺失时采用上述两个镜像；用户已有自定义值或显式空值保留，显式留空继续使用官方源。本机现有预览配置没有这两个键，也会直接采用新默认。不改客户端下载代码，不新增 nginx 规则，不修改用户配置/缓存。EXE 和安装器位置及测试结果见《Windows安装器打包》末节。正式整合包直链仍独立配置。
@@ -83,7 +83,7 @@ publish/
 
 让客户端直接 GET 对应文件，而不是目录浏览页面。下载地址需可由玩家访问；不要将需要交互登录的页面 URL 当成直链。完整 host 列表和路径以清单为准。
 
-2026-10-29 按用户要求移除首页常驻设置按钮。包地址尚未配置或格式无效时，点击「下载游戏」会弹出配置对话框，可填写下表各项。已有有效地址需要更换时，关闭启动器后编辑其实际数据目录的启动器配置文件中对应键（原版名为 `prismlauncher.cfg`，NiijimaLauncher 独立品牌以安装器文档为准）；清空 `NiijimaPackUrl` 可在下次下载时重新进入配置。
+以下表格是早期手工配置方案的示例。当前源码已按用户要求删除自动配置弹窗，采用《整合包版本索引》的固定索引 URL 和可选配置覆盖；清空 NiijimaPackUrl 走索引，不再弹窗。该改动已随本轮明确授权构建生效。
 
 | 输入框 | 配置键 | 示例值 |
 | --- | --- | --- |

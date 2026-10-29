@@ -46,6 +46,10 @@ set(CORE_SOURCES
     InstanceImportTask.h
     InstanceImportTask.cpp
 
+    # Niijima pack release index
+    niijima/PackIndex.h
+    niijima/PackIndex.cpp
+
     # Resource downloading task
     ResourceDownloadTask.h
     ResourceDownloadTask.cpp

@@ -22,6 +22,7 @@ set(TEST_SOURCES
     Index_test.cpp
     Version_test.cpp
     ModrinthUrl_test.cpp
+    NiijimaPackIndex_test.cpp
     MetaComponentParse_test.cpp
     CatPack_test.cpp
     XmlLogs_test.cpp

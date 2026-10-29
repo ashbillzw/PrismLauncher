@@ -2,20 +2,18 @@
 #include "NiijimaHomeWindow.h"
 #include <QCloseEvent>
 #include <QComboBox>
-#include <QDialog>
-#include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QFontDatabase>
-#include <QFormLayout>
+#include <QFontInfo>
+#include <QFontMetricsF>
 #include <QGraphicsBlurEffect>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsScene>
 #include <QIcon>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
@@ -23,16 +21,54 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QStyleOptionButton>
+#include <QStylePainter>
+#include <QtMath>
 #include <QVBoxLayout>
 #include <QWindow>
 #include "Application.h"
 #include "InstanceImportTask.h"
 #include "InstanceList.h"
 #include "minecraft/MinecraftInstance.h"
+#include "niijima/PackIndex.h"
+#include "settings/Setting.h"
 #include "settings/SettingsObject.h"
 #include "ui/MainWindow.h"
 
 namespace {
+constexpr int kTitleBarHeight = 46;
+
+// Measure the visible glyphs, so the font's trailing letter spacing does not add uneven padding.
+class HomePrimaryButton : public QPushButton {
+public:
+    explicit HomePrimaryButton(QWidget* parent) : QPushButton(parent) { setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed); }
+
+    QSize sizeHint() const override
+    {
+        ensurePolished();
+        const auto bounds = QFontMetricsF(font()).tightBoundingRect(text());
+        const qreal margin = QFontInfo(font()).pixelSize() * 0.6;
+        return QSize(qCeil(bounds.width() + 2 * margin) + 2, qCeil(bounds.height() + 2 * margin) + 2);
+    }
+
+    QSize minimumSizeHint() const override { return sizeHint(); }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QStyleOptionButton option;
+        initStyleOption(&option);
+        const auto label = option.text;
+        option.text.clear();
+        QStylePainter painter(this);
+        painter.drawControl(QStyle::CE_PushButton, option);
+        painter.setFont(font());
+        painter.setPen(isEnabled() ? QColor(Qt::white) : QColor("#aab0ba"));
+        const auto bounds = QFontMetricsF(font()).tightBoundingRect(label);
+        painter.drawText(QRectF(rect()).center() - bounds.center(), label);
+    }
+};
+
 class HomeWordmark : public QWidget {
 public:
     explicit HomeWordmark(QWidget* parent) : QWidget(parent), m_icon(QStringLiteral(":/niijima/home-title.svg")) {}
@@ -61,7 +97,7 @@ QPixmap createFrostedBackground()
     QGraphicsScene scene;
     auto* artwork = scene.addPixmap(source);
     auto* blur = new QGraphicsBlurEffect;
-    blur->setBlurRadius(20);
+    blur->setBlurRadius(18);
     blur->setBlurHints(QGraphicsBlurEffect::QualityHint);
     artwork->setGraphicsEffect(blur);
     scene.setSceneRect(source.rect());
@@ -77,6 +113,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
 {
     static const int titleFont = QFontDatabase::addApplicationFont(":/niijima/ZenMaruGothic-Bold.ttf");
     Q_UNUSED(titleFont);
+    static const int regularTitleFont = QFontDatabase::addApplicationFont(":/niijima/ZenMaruGothic-Regular.ttf");
+    if (regularTitleFont < 0)
+        qWarning("Could not load the bundled Zen Maru Gothic Regular font");
     static const int chineseFont = QFontDatabase::addApplicationFont(":/niijima/NotoSansSC-VariableFont_wght.ttf");
     if (chineseFont < 0)
         qWarning("Could not load the bundled Noto Sans SC font");
@@ -102,7 +141,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QPushButton:hover { background: #ffe3b0; border-color: #b46d06; }
         QPushButton:pressed { background: #ffd082; }
         QPushButton:disabled { color: #9d8e78; border-color: #d7c6ae; background: #eee0cc; }
-        QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #452800; }
+        QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
         QPushButton#close:hover { background: #c42b1c; color: white; }
         QComboBox { border: 1px solid #cba169; border-radius: 6px; padding: 7px; background: #fff8eb; color: #452800; }
         QProgressBar { border: 0; background: #f9dca8; color: #452800; text-align: center; font-size: 12px; }
@@ -111,7 +150,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton { background: rgba(30, 36, 47, 155); border-color: rgba(255, 249, 238, 80); color: #fff9ee; }
         QWidget#homeBody QPushButton:hover { background: rgba(65, 73, 86, 190); border-color: rgba(255, 249, 238, 145); }
         QWidget#homeBody QPushButton:pressed { background: rgba(19, 26, 37, 210); }
-        QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 34px; font-weight: 700; letter-spacing: 2px; min-width: 160px; padding: 18px 36px; }
+        QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 36px; font-weight: 700; letter-spacing: 18px; padding: 0; }
         QWidget#homeBody QPushButton#primary:hover { background: #ffad28; }
         QWidget#homeBody QPushButton#primary:pressed { background: #de8600; }
         QWidget#homeBody QPushButton#prism { background: rgba(84, 75, 70, 205); border-color: rgba(194, 181, 166, 130); border-radius: 8px; font-size: 13px; padding: 8px 14px; }
@@ -125,11 +164,11 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     root->setContentsMargins(1, 1, 1, 1);
     root->setSpacing(0);
     auto* titleBar = new QWidget(this);
-    titleBar->setFixedHeight(54);
+    titleBar->setFixedHeight(kTitleBarHeight);
     auto* titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(24, 0, 0, 0);
     auto* title = new QLabel(launcherTitle, titleBar);
-    QFont heading("Noto Sans SC", 16, QFont::Bold);
+    QFont heading("Noto Sans SC", 14, QFont::Bold);
     heading.setFamilies({ "Noto Sans SC", "Microsoft YaHei UI" });
     title->setObjectName("homeTitle");
     title->setFont(heading);
@@ -139,7 +178,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     auto* close = new QPushButton(QString::fromUtf8("×"), titleBar);
     close->setObjectName("close");
     close->setAccessibleName(QStringLiteral("关闭"));
-    close->setFixedSize(62, 54);
+    close->setFixedSize(62, kTitleBarHeight);
     connect(close, &QPushButton::clicked, this, &QWidget::close);
     titleLayout->addWidget(close);
     root->addWidget(titleBar);
@@ -154,7 +193,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     layout->setSpacing(12);
     layout->addStretch(2);
     auto* hero = new QVBoxLayout();
-    hero->setSpacing(12);
+    hero->setSpacing(18);
     auto* badge = new QLabel(QStringLiteral("NIIJIMA RAILWAYS"), body);
     badge->setStyleSheet("font-size: 12px; letter-spacing: 3px; color: #f5dec2;");
     hero->addWidget(badge, 0, Qt::AlignLeft);
@@ -163,12 +202,15 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     wordmark->setAccessibleName(QStringLiteral("新島鉄道"));
     wordmark->setFixedSize(444, 110);
     hero->addWidget(wordmark, 0, Qt::AlignLeft);
-    auto* slogan = new QLabel(QStringLiteral("==しゅっぱつしんこう！！=="), body);
+    auto* slogan = new QLabel(QStringLiteral("<span style='font-size:18px'>==</span>しゅっぱつしんこう！！"
+                                            "<span style='font-size:18px'>==</span>"), body);
+    slogan->setTextFormat(Qt::RichText);
+    slogan->setAccessibleName(QStringLiteral("==しゅっぱつしんこう！！=="));
     slogan->setProperty("niijimaLanguage", "ja");
-    slogan->setStyleSheet("font-family: 'Zen Maru Gothic'; font-size: 24px; font-weight: 700;");
+    slogan->setStyleSheet("font-family: 'Zen Maru Gothic'; font-size: 24px; font-weight: 400; color: #d0d0d0;");
     hero->addWidget(slogan, 0, Qt::AlignLeft);
     layout->addLayout(hero);
-    layout->addStretch(3);
+    layout->addStretch(4);
     m_status = new QLabel(body);
     m_status->setWordWrap(true);
     m_status->setTextFormat(Qt::PlainText);
@@ -199,7 +241,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         mainWindow->show();
         hide();
     });
-    actions->addWidget(prism, 0, Qt::AlignVCenter);
+    actions->addWidget(prism, 0, Qt::AlignBottom);
     actions->addStretch();
     m_packVersion = new QLabel(body);
     m_packVersion->setObjectName("packVersion");
@@ -214,11 +256,11 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         if (m_task)
             m_task->abort();
     });
-    actions->addWidget(m_cancel);
-    m_primary = new QPushButton(body);
+    actions->addWidget(m_cancel, 0, Qt::AlignBottom);
+    m_primary = new HomePrimaryButton(body);
     m_primary->setObjectName("primary");
     connect(m_primary, &QPushButton::clicked, this, &NiijimaHomeWindow::primaryAction);
-    actions->addWidget(m_primary);
+    actions->addWidget(m_primary, 0, Qt::AlignBottom);
     layout->addLayout(actions);
     root->addWidget(body, 1);
     connect(APPLICATION->instances(), &InstanceList::instancesChanged, this, &NiijimaHomeWindow::refresh);
@@ -238,7 +280,7 @@ void NiijimaHomeWindow::paintEvent(QPaintEvent*)
     QPainterPath clip;
     clip.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
     p.setClipPath(clip);
-    const QRectF body(0, 54, width(), height() - 54);
+    const QRectF body(0, kTitleBarHeight, width(), height() - kTitleBarHeight);
     p.fillRect(rect(), QColor("#26313f"));
     if (!m_frostedBackground.isNull()) {
         // Center-crop to cover the body while preserving the artwork's aspect ratio.
@@ -250,26 +292,15 @@ void NiijimaHomeWindow::paintEvent(QPaintEvent*)
         p.drawPixmap(body, m_frostedBackground, source);
     }
 
-    // A light frosted veil retains the sunset; shading supports the text and actions.
-    p.fillRect(body, QColor(229, 237, 248, 20));
-    QLinearGradient shade(body.topLeft(), body.topRight());
-    shade.setColorAt(0, QColor(15, 23, 35, 70));
-    shade.setColorAt(0.65, QColor(15, 23, 35, 10));
-    shade.setColorAt(1, QColor(15, 23, 35, 20));
-    p.fillRect(body, shade);
-    QLinearGradient footer(body.topLeft(), body.bottomLeft());
-    footer.setColorAt(0, QColor(12, 19, 29, 0));
-    footer.setColorAt(0.55, QColor(12, 19, 29, 0));
-    footer.setColorAt(1, QColor(12, 19, 29, 125));
-    p.fillRect(body, footer);
-    p.fillRect(QRect(0, 0, width(), 54), QColor("#f39801"));
+    // Uniform blur only: no tint or regional contrast masks over the background.
+    p.fillRect(QRect(0, 0, width(), kTitleBarHeight), QColor("#f39801"));
     p.setClipping(false);
     p.setPen(QPen(QColor("#d39b45"), 1));
     p.drawPath(clip);
 }
 void NiijimaHomeWindow::mousePressEvent(QMouseEvent* e)
 {
-    if (e->button() == Qt::LeftButton && e->position().y() < 54 && windowHandle())
+    if (e->button() == Qt::LeftButton && e->position().y() < kTitleBarHeight && windowHandle())
         windowHandle()->startSystemMove();
     QWidget::mousePressEvent(e);
 }
@@ -359,81 +390,90 @@ void NiijimaHomeWindow::refreshPackVersion()
     m_packVersion->show();
 }
 
-void NiijimaHomeWindow::configure()
+void NiijimaHomeWindow::showDownloadError(const QString& message, const QString& details)
 {
-    QDialog dlg(this);
-    dlg.setWindowTitle(QStringLiteral("新岛铁道设置"));
-    dlg.resize(600, 260);
-    auto* form = new QFormLayout(&dlg);
-    auto* s = APPLICATION->settings();
-    auto* pack = new QLineEdit(s->get("NiijimaPackUrl").toString(), &dlg);
-    auto* meta = new QLineEdit(s->get("MetaURLOverride").toString(), &dlg);
-    auto* assets = new QLineEdit(s->get("ResourceURLOverride").toString(), &dlg);
-    pack->setPlaceholderText("https://your-server/niijima/packs/pack.zip");
-    meta->setPlaceholderText("https://your-server/niijima/meta/v1/");
-    assets->setPlaceholderText("https://your-server/niijima/assets/");
-    form->addRow(QStringLiteral("整合包地址"), pack);
-    form->addRow(QStringLiteral("元数据镜像"), meta);
-    form->addRow(QStringLiteral("资源镜像"), assets);
-    auto* note = new QLabel(QStringLiteral("镜像留空使用原来源；镜像设置对所有 Prism 实例生效。"), &dlg);
-    note->setWordWrap(true);
-    form->addRow(note);
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dlg);
-    form->addRow(buttons);
-    buttons->button(QDialogButtonBox::Save)->setText(QStringLiteral("保存"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, [&] {
-        for (auto* field : { pack, meta, assets }) {
-            const auto value = field->text().trimmed();
-            if (value.isEmpty())
-                continue;
-            QUrl url(value);
-            const bool local = url.host() == "localhost" || url.host() == "127.0.0.1" || url.host() == "::1";
-            if (!url.isValid() || url.host().isEmpty() || !(url.scheme() == "https" || (local && url.scheme() == "http")) ||
-                !url.userInfo().isEmpty() || url.hasFragment()) {
-                QMessageBox::warning(&dlg, QStringLiteral("地址无效"), QStringLiteral("请输入 HTTPS 下载地址；本地测试可使用 HTTP。"));
-                return;
-            }
-            if (field != pack && (url.hasQuery())) {
-                QMessageBox::warning(&dlg, QStringLiteral("地址无效"), QStringLiteral("镜像根地址不能包含查询参数。"));
-                return;
-            }
-        }
-        auto root = [](QString v) {
-            v = v.trimmed();
-            if (!v.isEmpty() && !v.endsWith('/'))
-                v += '/';
-            return v;
-        };
-        s->set("NiijimaPackUrl", pack->text().trimmed());
-        s->set("MetaURLOverride", root(meta->text()));
-        s->set("ResourceURLOverride", root(assets->text()));
-        dlg.accept();
-    });
-    dlg.exec();
+    refresh();
+    m_status->setText(message);
+    m_status->show();
+    m_details->setText(details);
+    m_details->setVisible(!details.isEmpty());
 }
+
 void NiijimaHomeWindow::primaryAction()
 {
-    const auto id = APPLICATION->settings()->get("NiijimaPreferredInstance").toString();
+    if (m_task && m_task->isRunning())
+        return;
+    auto* settings = APPLICATION->settings();
+    const auto id = settings->get("NiijimaPreferredInstance").toString();
     if (auto* inst = APPLICATION->instances()->getInstanceById(id)) {
         APPLICATION->launch(inst);
         return;
     }
-    const auto validPackUrl = [](const QUrl& url) {
+    const auto validDownloadUrl = [](const QUrl& url) {
         const bool local = url.host() == "localhost" || url.host() == "127.0.0.1" || url.host() == "::1";
         return url.isValid() && !url.host().isEmpty() && (url.scheme() == "https" || (local && url.scheme() == "http")) &&
                url.userInfo().isEmpty() && !url.hasFragment();
     };
-    auto url = QUrl(APPLICATION->settings()->get("NiijimaPackUrl").toString());
-    if (!validPackUrl(url)) {
-        configure();
-        url = QUrl(APPLICATION->settings()->get("NiijimaPackUrl").toString());
-        if (!validPackUrl(url))
+    // Existing explicit ZIP overrides remain available through the configuration file.
+    const auto directUrl = settings->get("NiijimaPackUrl").toString().trimmed();
+    if (!directUrl.isEmpty()) {
+        const QUrl url(directUrl);
+        if (!validDownloadUrl(url)) {
+            showDownloadError(QStringLiteral("整合包地址无效"), QStringLiteral("请检查配置文件中的 NiijimaPackUrl。"));
             return;
+        }
+        startImport(url);
+        return;
     }
-    startImport(url);
+
+    const auto indexSetting = settings->getSetting("NiijimaPackIndexUrl");
+    auto indexUrl = indexSetting->get().toString().trimmed();
+    if (indexUrl.isEmpty())
+        indexUrl = indexSetting->defValue().toString();
+    if (!validDownloadUrl(QUrl(indexUrl))) {
+        showDownloadError(QStringLiteral("整合包索引地址无效"), QStringLiteral("请检查配置文件中的 NiijimaPackIndexUrl。"));
+        return;
+    }
+    startReleaseLookup(QUrl(indexUrl), settings->get("NiijimaPackVersionId").toString().trimmed());
 }
+
+void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& requestedId)
+{
+    auto* task = new Niijima::PackIndexTask(indexUrl, requestedId, this);
+    m_task = task;
+    m_primary->setEnabled(false);
+    m_primary->setText(QStringLiteral("正在检查"));
+    m_instances->hide();
+    m_details->clear();
+    m_details->hide();
+    m_status->setText(QStringLiteral("正在获取整合包版本…"));
+    m_status->show();
+    m_progress->setRange(0, 0);
+    m_progress->show();
+    m_cancel->setText(QStringLiteral("取消"));
+    m_cancel->show();
+    connect(task, &Task::abortStatusChanged, m_cancel, &QWidget::setEnabled);
+    connect(task, &Task::finished, this, [this, task] {
+        const bool success = task->wasSuccessful();
+        const bool cancelled = task->getState() == Task::State::AbortedByUser;
+        const auto reason = task->failReason();
+        const auto packUrl = task->release().packUrl;
+        m_task = nullptr;
+        task->deleteLater();
+        if (success) {
+            startImport(packUrl);
+        } else if (cancelled) {
+            refresh();
+            m_status->setText(QStringLiteral("已取消"));
+            m_status->show();
+        } else {
+            showDownloadError(QStringLiteral("获取整合包版本失败，可重试。"), reason);
+        }
+    });
+    task->start();
+    m_cancel->setEnabled(task->canAbort());
+}
+
 void NiijimaHomeWindow::startImport(const QUrl& url)
 {
     if (m_task && m_task->isRunning())
@@ -450,9 +490,12 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     m_primary->setEnabled(false);
     m_instances->hide();
     m_primary->setText(QStringLiteral("正在安装"));
+    m_details->clear();
+    m_details->hide();
     m_progress->setRange(0, 0);
     m_progress->setFormat(QStringLiteral("%p%"));
     m_progress->show();
+    m_cancel->setText(QStringLiteral("取消"));
     m_cancel->show();
     m_status->setText(QStringLiteral("正在下载整合包…"));
     m_status->show();

@@ -1,5 +1,42 @@
 # copyparty 镜像准备
 
+## 2026-10-29 最终交付：一个包上传后原地解压（唯一当前方案）
+
+用户明确要求：只上传一个 `.tar.gz` 到现有 copyparty 的固定父目录，再在原地解压；**不增加目录搬动、元数据补丁、服务器脚本或软件安装步骤**。下文早期 `publish/` 根、补丁和服务器定稿流程仅保留历史，均不再用于本次部署。
+
+- **唯一交付文件**：`D:/mydata/Agents/Minecraft相关/本地资源/Prism镜像部署/上传即用-20261029/niijima-mirror.tar.gz`，**673,669,096 字节（642.46 MiB）**。
+- 上传位置：`https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/`。上传后就在此目录解压。归档自带顶层 `niijima-mirror/`，其内直接是 `assets/`、`files/`、`meta/`，不含 `publish/` 包装、脚本、清单、README 或空的 `packs/`。
+- 最终镜像根固定为 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/`，所有元数据已在本地按此 URL 离线定稿。**没有 `/publish/`**。
+- `MetaURLOverride=https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/meta/v1/`
+- `ResourceURLOverride=https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/assets/`
+- `NiijimaPackUrl` 另按正式整合包的真实地址设置；本包不含 `pack.zip`，不能把生成器建议的 `packs/pack.zip` 当作已存在资源。Java 下载和账号服务仍沿用原流程。
+- 交付目录另有包外极简 `部署说明.md`，留本地供用户阅读，不需上传。此前 `niijima-mirror-mc1.20.1-forge47.4.6-20261029.tar.gz`、`仅部署文件-20261029/` 内的完整包和补丁均已被本次单包替代，未来 agent 不再要求用户使用它们。
+
+启动器默认值与本包已对齐并完成构建：仅 Niijima 品牌在设置键缺失时采用上述两个镜像；用户已有自定义值或显式空值保留，显式留空继续使用官方源。本机现有预览配置没有这两个键，也会直接采用新默认。不改客户端下载代码，不新增 nginx 规则，不修改用户配置/缓存。EXE 和安装器位置及测试结果见《Windows安装器打包》末节。正式整合包直链仍独立配置。
+
+范围保持 Minecraft **1.20.1**、Forge **47.4.6**、LWJGL **3.3.1**。复用此前按官方 SHA1/字节数验证的 **3,746 个资源文件，767,710,792 字节**；本次复制前核对清单和各源文件字节数，资源闭包不变，未重新下载。重新生成的 **7 个 JSON** 已检查版本→组件→根索引 SHA256 链，**174 个下载 URL** 全部指向最终无 `publish/` 根地址。归档共 **3,753 文件**；已用 PATH 上的 7z 完成 tar 和 gzip，两步均退出 0、输出 `Everything is Ok`，按用户规则未额外测试或解包压缩包。
+
+本地构建和验证记录：`D:/mydata/Agents/Minecraft相关/本地资源/Prism镜像部署/构建暂存-20261029-final/verification.json`。本节只确认本地最终归档已完成；未上传、未删除远端旧文件，尚未验证新无 `publish/` URL 上线或真实游戏安装。旧 `publish/` 部署的访问结果不能作为新地址验收；用户完成本次原地解压后，再按新根做只读检查。
+
+## 2026-10-29 实际 copyparty 地址与首次交付修正（历史方案，已被上节替代）
+
+用户已将旧归档整个解包目录上传，当前实际镜像根是其下的 `publish/`：
+
+`https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/publish/`
+
+只读访问确认根目录中同时公开了 `_sources/`、脚本和清单；线上元数据仍含 `mirror.invalid`。旧包虽不含 copyparty 软件，但让用户处理发布目录映射、运行本地可完成的定稿脚本，不符合直接上传已有 copyparty 的交付需求。以下为最新状态，后文“尚未上传/URL 未知”均是旧交付时的记录。
+
+- 本地已按真实 URL 离线定稿并通过 7 个 JSON、版本→组件→根索引 SHA256 链及 174 个下载 URL 核查。原资源清单不变；没有重新下载大文件。
+- 新交付目录：`D:/mydata/Agents/Minecraft相关/本地资源/Prism镜像部署/仅部署文件-20261029`。`部署说明.md` 与 `启动器镜像配置.txt` 放在归档外。
+- 现有部署仅需 `niijima-mirror-meta-patch-20261029.tar.gz`（12,627 字节），解压得到 `meta/`，合并覆盖到线上 `niijima-mirror/publish/`，共 7 个 JSON。资源无需移动或重传；补丁尚未由用户上传。
+- 完整替代归档 `niijima-mirror-static-mc1.20.1-forge47.4.6-20261029.tar.gz`（673,646,896 字节），根目录只有 `assets/`、`files/`、`meta/`。解压到同一个 `publish/`。不含脚本、审计清单、原始 JSON 缓存或额外包装目录。
+- 旧包多余公开的辅助文件共 11 个、1,837,969 字节；运行资源为 3,575 个 assets、171 个 files、7 个 meta。几千个资源对象是指定游戏版本所需文件，不能直接删掉。
+- 远端只做目录/元数据读取和两个小文件的 HTTP 200 + SHA1 抽查；未全量远端校验、未上传/删除、未完成真实安装或进游戏。旧部署状态 JSON 不能代替线上元数据实际状态；不要把本地补丁生成说成线上已修复。
+- `packs/` 为空，正式整合包 URL 仍需另给；不把不存在的 pack.zip 填成可用地址。`MetaURLOverride` 为上述根加 `meta/v1/`，`ResourceURLOverride` 为根加 `assets/`。
+- 以后本任务交付采用纯静态归档：脚本、审计资料和说明留本地/归档外；URL 不确定时先交资源，收到实际 URL 后在本地定稿并交小补丁，不要求用户为了这个镜像安装软件或在服务器运行生成器。
+
+本轮没有构建启动器或修改其配置；此前 UI 的 DPI 修复仍待明确构建。归档按 7z 成功退出验收，没有追加解包测试。
+
 更新：2026-10-29。范围：本地整合包当前使用的 **Minecraft 1.20.1 / Forge 47.4.6**，以及组件依赖 **LWJGL 3.3.1**。采用 Prism 原有配置和服务端元数据改写，不修改启动器下载路由。
 
 ## 已准备的文件

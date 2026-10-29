@@ -119,3 +119,17 @@ NiijimaLauncher 署名为 AshBill 和 GPT-6 Astra（AI 开发协作）。源码�
 - 原无横线预览 EXE 仍留在运行目录供恢复；它不再代表最新版本，打包脚本明确不将它和旧 filelink 包进安装器。当前程序旁 README/LICENSE/COPYING 已更新。
 - 本轮源码检查与构建日志在仓库外 `工具/prism-build/ui-v1-*.log`。页面布局仍待用户打开最新版做视觉/交互验收。
 - 按已获授权，将未提交工作按镜像工具及启动器/UI/品牌安装器两组提交，再提醒用户手动 push。构建发生于提交前，“关于”页旧 HEAD 是构建时元数据，不能当作完整新源码版本；对应最终源码应以此次提交为准。
+
+## 2026-10-29 默认镜像与 DPI 修复构建完成
+
+- 用户明确授权：一个 tar.gz 上传到 `minecraft/niijima-launcher/` 后原地解压；启动器内置对应镜像并构建。最终包为仓库外 `本地资源/Prism镜像部署/上传即用-20261029/niijima-mirror.tar.gz`（673,669,096 字节），自带 `niijima-mirror/assets/`、`files/`、`meta/`。不再采用旧 `publish/` 或元数据补丁流程。
+- `Application.cpp` 仅对 AppID `com.ashbill.NiijimaLauncher` 注册 `MetaURLOverride` / `ResourceURLOverride` 默认值，分别为 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/meta/v1/` 和 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/assets/`。下载代码未改，copyparty 可直接按文件路径提供，不需要新增 nginx 路由。
+- 新配置或缺少镜像键的旧配置自动使用上述默认值；已保存的自定义地址保留，显式空值仍使用官方原源。`BuildConfig` 官方 fallback 未改。检查到本机预览配置原本没有镜像键，因此无需替用户改配置文件；没有写入用户配置或清除其缓存。
+- 同时包含 `QIcon::paint` 字标 DPI 修复、34 px 主按钮文字、2 px 字间距及加宽按钮。资源字形未改。
+- Release 主程序和 filelink 编译成功，安装目录 `D:/mydata/Repositories/PrismLauncher/install-niijima/niijima-launcher.exe`（37,698,560 字节）；Windows NSIS 安装器 `D:/mydata/Agents/Minecraft相关/本地资源/启动器安装器/2026-10-29/NiijimaLauncher-Setup.exe`（30,114,027 字节）已更新，旧安装器留在同目录“历史”。二进制内已确认最终无 publish 的镜像根和 34 px 样式字符串。
+- CTest 22/22 通过（排除 FileSystem），镜像工具测试 3/3 通过；最终归档元数据的 7 个 JSON、SHA256 链、174 个 URL 已核对。归档按 7z 成功退出验收，没有重复解包校验。
+- 本轮没有运行启动器或安装器 GUI；高 DPI 外观、真实安装/登录/进游戏仍未实测。新镜像包等待用户上传并解压，不能把本地构建当作线上可用。正式 pack.zip 及其下载 URL 仍需另行配置。
+- 日志：仓库外 `工具/prism-build/mirror-final-*.log`。PowerShell 5 会把 CMake 警告误当终止错误；改用 `pwsh`（PowerShell 7）后构建正常。保留 `/CGTHREADS:1`，应用/辅助程序并行4，测试链接单并行，未运行 FileSystem 测试。
+- 按用户既有授权在构建完成后分 UI 与镜像两组提交；不 push，需用户自行公开对应源码。构建早于这两个提交，程序内 Git HEAD 仍是构建时值，不能代表尚未写入的提交。
+
+补充无窗口渲染检查：使用 Qt 6.11.2 的 offscreen 平台和当前 SVG，在 DPR 1、1.5、2 下按 HomeWordmark 的 444×110 / QIcon::paint 绘制；三种缩放的四字均完整，透明四边未触达，PNG 已目视核查。此检查验证字标绘制，不替代完整启动器布局/交互验收。PNG、results.json 和 helper 位于仓库外 `工具/prism-build/title-render-regression/`；未打开任何窗口。

@@ -892,11 +892,19 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
                 }
             };
 
+            // Niijima's static mirror matches the archive's top-level directory after extraction.
+            // Registration defaults preserve saved custom URLs and explicitly empty (upstream) values.
+            const bool niijima = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher");
+            const QString mirrorRoot = QStringLiteral(
+                "https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/"
+                "minecraft/niijima-launcher/niijima-mirror/");
+
             // Meta URL
-            resetIfInvalid(m_settings->registerSetting("MetaURLOverride", "").get());
+            resetIfInvalid(m_settings->registerSetting("MetaURLOverride", niijima ? mirrorRoot + "meta/v1/" : QString()).get());
 
             // Resource URL
-            resetIfInvalid(m_settings->registerSetting({ "ResourceURLOverride", "ResourceURL" }, "").get());
+            resetIfInvalid(
+                m_settings->registerSetting({ "ResourceURLOverride", "ResourceURL" }, niijima ? mirrorRoot + "assets/" : QString()).get());
 
             // Legacy FML libs URL
             resetIfInvalid(m_settings->registerSetting("LegacyFMLLibsURLOverride", "").get());

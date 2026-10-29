@@ -2,17 +2,21 @@
 
 ## 当前迭代约定（2026-10-29 用户明确要求）
 
+当前唯一镜像交付为仓库外 `本地资源/Prism镜像部署/上传即用-20261029/niijima-mirror.tar.gz`。用户只需上传到既有 `minecraft/niijima-launcher/` 后原地解压；包内自带 `niijima-mirror/`，没有 `publish/`。对应镜像 URL 已作为 Niijima 品牌默认值内置并构建，等待用户部署；旧包及补丁方案不再使用。详见《copyparty镜像准备》顶部。
+
+本轮已按明确指示构建：修复字标 DPI 裁切、34 px/2 px 字距和加宽按钮、内置最终镜像默认值，均已进入新的测试 EXE 和安装器；具体尺寸及验证结果见末节。后续修改仍需用户明确指示才构建。
+
 - 修改后先保留源码/文档，**只有用户明确指示构建时才配置、编译、收集运行目录或重打安装器**；未构建的回复应明确写“未构建”。不要因代码修改自动触发 CMake/Ninja/NSIS。
 - 用户明确构建后，完成适用验证，再按功能/依赖关系写一个或多个本地 commit，并提醒用户将对应源码 push 到公开仓库。用户已授权这次后续构建完成后的分类提交；展示分组 diff 与验证结果，不重复索取相同授权。未相关的其他工作另行判断。
 - Agent 不执行 push，不创建远端发布。源码 URL 为 `https://github.com/ashbillzw/PrismLauncher`；commit 不等于 push，源链接存在不等于云端已含本地修改。
-- 当前可直接运行的成品为 `install-niijima/niijima-launcher.exe`（2026-10-29 截图 UI 版），与 DLL、Qt 插件等配套使用。本轮截图、署名、文件名和图标分离已包含；暂不自动显示启动器或安装器窗口。
+- 当前可直接运行的成品为 `install-niijima/niijima-launcher.exe`（2026-10-29 默认镜像与 DPI 修复版），与 DLL、Qt 插件等配套使用。本轮截图、署名、文件名和图标分离已包含；暂不自动显示启动器或安装器窗口。
 
 
-更新：2026-10-29。仓库 `D:/mydata/Repositories/PrismLauncher`，当前分支 `develop`，实施前基线 HEAD `3d4fc45286f08d96537895f3cc5124843f485469`。本轮未 fetch、commit 或 push，不能把本地远端跟踪引用当作刚查询的云端状态。
+更新：2026-10-29。仓库 `D:/mydata/Repositories/PrismLauncher`，当前分支 `develop`。此前镜像与启动器工作已分别提交为 `2e5240046`、`4cbef888e`；本次 DPI 修复开始时工作区干净，按本地缓存的 `origin/develop` 为 ahead 2。本轮 UI 修复已提交 `0b67ec0e5`，镜像默认配置及最终交接随本节所在提交保存；构建完成后才提交。未 fetch 或 push，最新 ahead/工作区状态以本地 Git 查询为准，不能把缓存远端引用当作刚查询的云端状态。后文未提交等状态为对应历史迭代记录，以本节及末节为准。
 
 ## 当前工作与用户决定
 
-制作新岛铁道专用开屏，复用原整合包安装和启动路径。镜像用现有 `MetaURLOverride` / `ResourceURLOverride` 加改写后的服务端元数据，**不修改游戏下载代码**。URL 未定，设置提供占位提示；背景使用用户确认的确定版图片，加磨砂玻璃层（2026-10-29）；允许自动下载/切换 Java，账号登录留到首次启动游戏。
+制作新岛铁道专用开屏，复用原整合包安装和启动路径。镜像用现有 `MetaURLOverride` / `ResourceURLOverride` 加改写后的服务端元数据，**不修改游戏下载代码**。镜像 URL 已固定并内置，整合包 ZIP URL 仍待确定；背景使用用户确认的确定版图片，加磨砂玻璃层（2026-10-29）；允许自动下载/切换 Java，账号登录留到首次启动游戏。
 
 **目前不要启动会显示窗口的程序。用户要求等其回到电脑前再继续可视化验证。** 本次测试进程已退出。不要把 Start-Process 的 Hidden 当成保证 GUI 不会显示的机制。
 
@@ -132,3 +136,17 @@
 - 按已获授权，将未提交工作按镜像工具及启动器/UI/品牌安装器两组提交，再提醒用户手动 push。构建发生于提交前，“关于”页旧 HEAD 是构建时元数据，不能当作完整新源码版本；对应最终源码应以此次提交为准。
 
 提交前格式核查：保留两份上游 OFL 原文中的行尾空格，diff --check 仅对这两份原文作路径豁免，其余修改通过检查。
+
+## 2026-10-29 默认镜像与 DPI 修复构建完成
+
+- 用户明确授权：一个 tar.gz 上传到 `minecraft/niijima-launcher/` 后原地解压；启动器内置对应镜像并构建。最终包为仓库外 `本地资源/Prism镜像部署/上传即用-20261029/niijima-mirror.tar.gz`（673,669,096 字节），自带 `niijima-mirror/assets/`、`files/`、`meta/`。不再采用旧 `publish/` 或元数据补丁流程。
+- `Application.cpp` 仅对 AppID `com.ashbill.NiijimaLauncher` 注册 `MetaURLOverride` / `ResourceURLOverride` 默认值，分别为 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/meta/v1/` 和 `https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/minecraft/niijima-launcher/niijima-mirror/assets/`。下载代码未改，copyparty 可直接按文件路径提供，不需要新增 nginx 路由。
+- 新配置或缺少镜像键的旧配置自动使用上述默认值；已保存的自定义地址保留，显式空值仍使用官方原源。`BuildConfig` 官方 fallback 未改。检查到本机预览配置原本没有镜像键，因此无需替用户改配置文件；没有写入用户配置或清除其缓存。
+- 同时包含 `QIcon::paint` 字标 DPI 修复、34 px 主按钮文字、2 px 字间距及加宽按钮。资源字形未改。
+- Release 主程序和 filelink 编译成功，安装目录 `D:/mydata/Repositories/PrismLauncher/install-niijima/niijima-launcher.exe`（37,698,560 字节）；Windows NSIS 安装器 `D:/mydata/Agents/Minecraft相关/本地资源/启动器安装器/2026-10-29/NiijimaLauncher-Setup.exe`（30,114,027 字节）已更新，旧安装器留在同目录“历史”。二进制内已确认最终无 publish 的镜像根和 34 px 样式字符串。
+- CTest 22/22 通过（排除 FileSystem），镜像工具测试 3/3 通过；最终归档元数据的 7 个 JSON、SHA256 链、174 个 URL 已核对。归档按 7z 成功退出验收，没有重复解包校验。
+- 本轮没有运行启动器或安装器 GUI；高 DPI 外观、真实安装/登录/进游戏仍未实测。新镜像包等待用户上传并解压，不能把本地构建当作线上可用。正式 pack.zip 及其下载 URL 仍需另行配置。
+- 日志：仓库外 `工具/prism-build/mirror-final-*.log`。PowerShell 5 会把 CMake 警告误当终止错误；改用 `pwsh`（PowerShell 7）后构建正常。保留 `/CGTHREADS:1`，应用/辅助程序并行4，测试链接单并行，未运行 FileSystem 测试。
+- 按用户既有授权在构建完成后分 UI 与镜像两组提交；不 push，需用户自行公开对应源码。构建早于这两个提交，程序内 Git HEAD 仍是构建时值，不能代表尚未写入的提交。
+
+补充无窗口渲染检查：使用 Qt 6.11.2 的 offscreen 平台和当前 SVG，在 DPR 1、1.5、2 下按 HomeWordmark 的 444×110 / QIcon::paint 绘制；三种缩放的四字均完整，透明四边未触达，PNG 已目视核查。此检查验证字标绘制，不替代完整启动器布局/交互验收。PNG、results.json 和 helper 位于仓库外 `工具/prism-build/title-render-regression/`；未打开任何窗口。

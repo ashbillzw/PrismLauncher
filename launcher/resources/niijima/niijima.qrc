@@ -1,6 +1,7 @@
 <RCC><qresource prefix="/niijima">
   <file>index_v2.json</file>
   <file>mmc_zh.qm</file>
+  <file>ZenMaruGothic-Regular.ttf</file>
   <file>ZenMaruGothic-Bold.ttf</file>
   <file>OFL.txt</file>
   <file>NotoSansSC-VariableFont_wght.ttf</file>

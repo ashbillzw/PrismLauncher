@@ -1,5 +1,9 @@
 # PrismLauncher 交接
 
+## 2026-10-30 窗口显示名与圆形图标（尚未构建）
+
+普通窗口的显示名改为 Prism Launcher 加数字版本，去掉开发渠道后缀；仅改 Qt displayName，保留新岛 AppID/配置目录/自绘首页标题。SVG 图标背景裁为圆形，N 不缩放或移动；PNG 与原九尺寸 ICO 已用 Qt 导出并检查，EXE/安装器尚未重建。安装步骤耗时估算已补到开屏专题，明确不是实测且不用于直接确定权重。
+
 ## 2026-10-30 C 盘本机构建与本地安装入口
 
 - 本机仓库 `C:/mydata/Repositories/PrismLauncher`，`develop`；基线 `042e2a537`。新增程序旁的可选 `niijima-local-test.json`，指定本地 pack 与镜像；无配置保持正式流程。本轮源码未提交，EXE 显示的基线 Git hash 不包含未提交改动的信息。

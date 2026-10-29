@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="NiijimaLauncher logo">
   <title>NiijimaLauncher logo</title>
-  <desc>Faithful geometric reconstruction of the supplied orange and white N logo. The N changes color where it crosses the diagonal background. Only flat filled paths are used for Qt SVG compatibility.</desc>
-  <rect width="600" height="600" fill="#fff"/>
-  <polygon points="0,0 282.4,429.5 600,429.5 600,600 0,600" fill="#f39801"/>
+  <desc>Circular crop of the orange and white N logo. The original artwork retains its size and position. Only flat filled paths are used for Qt SVG compatibility.</desc>
+  <circle cx="300" cy="300" r="300" fill="#fff"/>
+  <path d="M 70.340576 106.980444 L 282.4 429.5 L 570.609959 429.5 A 300 300 0 1 1 70.340576 106.980444 Z" fill="#f39801"/>
   <path id="n-outline" d="M 136.3 136.8 C 136.3 113.1 148 100.6 168.2 100.6 L 187 100.6 C 206.9 100.6 219.7 111.6 232 134.9 L 389.3 369.7 L 389.3 137 C 389.3 113.1 400.9 100.6 422 100.6 L 431.1 100.6 C 451.8 100.6 463.5 113.1 463.5 137 L 463.5 464.9 C 463.5 488.2 452 499.7 430.3 499.7 L 420.1 499.7 C 401.4 499.7 387.8 492.6 379.2 479.4 L 210.2 221 L 210.2 464.7 C 210.2 487.8 198.6 499.7 176.5 499.7 L 169.1 499.7 C 147.8 499.7 136.3 488.3 136.3 464.9 Z" fill="#f39801"/>
   <path id="n-white-left" d="M 136.3 207.298 L 210.2 319.692 L 210.2 464.7 C 210.2 487.8 198.6 499.7 176.5 499.7 L 169.1 499.7 C 147.8 499.7 136.3 488.3 136.3 464.9 Z" fill="#fff"/>
   <path id="n-white-right" d="M 346.564 429.5 L 463.5 429.5 L 463.5 464.9 C 463.5 488.2 452.0 499.7 430.3 499.7 L 420.1 499.7 C 401.4 499.7 387.8 492.6 379.2 479.4 Z" fill="#fff"/>

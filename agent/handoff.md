@@ -1,5 +1,9 @@
 # PrismLauncher 交接
 
+## 2026-10-30 02:12 构建状态更新
+
+用户授权后已重新完成 Release 编译、运行目录收集及 CTest（排除既有 FileSystem 弹窗测试，24/24 通过）。`install-niijima/niijima-launcher.exe` 已包含主按钮字距 11 px 和包根 `niijima-pack.json` 数值 `token: 114514` 的来源确认豁免；下文及专题中的“尚未构建”属于本次之前记录。`--version` 执行成功；尚未实际打开 GUI、导入或启动游戏。测试配置保留，仍指向 `build/pack-test.zip`，该包已成功递增到 `新岛铁道 v1.6.test0002`，包含 token，三处版本显示核对一致。下次成功打包为 test0003。沿用 `prism-local-test/启动本地测试.cmd` 可进入隔离测试 profile，直接运行 EXE 也可使用程序旁的本地测试配置；未制作新安装器、未提交或 push。
+
 ## 2026-10-30 窗口显示名与圆形图标（尚未构建）
 
 普通窗口的显示名改为 Prism Launcher 加数字版本，去掉开发渠道后缀；仅改 Qt displayName，保留新岛 AppID/配置目录/自绘首页标题。SVG 图标背景裁为圆形，N 不缩放或移动；PNG 与原九尺寸 ICO 已用 Qt 导出并检查，EXE/安装器尚未重建。安装步骤耗时估算已补到开屏专题，明确不是实测且不用于直接确定权重。

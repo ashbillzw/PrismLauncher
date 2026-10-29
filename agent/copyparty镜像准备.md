@@ -1,0 +1,139 @@
+# copyparty 镜像准备
+
+更新：2026-10-29。范围：本地整合包当前使用的 **Minecraft 1.20.1 / Forge 47.4.6**，以及组件依赖 **LWJGL 3.3.1**。采用 Prism 原有配置和服务端元数据改写，不修改启动器下载路由。
+
+## 已准备的文件
+
+本机目录：`D:\mydata\Agents\Minecraft相关\本地资源\Prism镜像准备`。
+
+- `download-manifest.json`：每个上游文件的官方直链、镜像相对路径、SHA1、字节数。
+- `official-sources.txt`：完整上游 URL 列表。
+- `publish/`：已生成元数据和原始资源索引；**3,746 个资源文件已全部取得并按官方 SHA1/大小校验；尚未上传**。
+- `_sources/`：构建元数据使用的原始 JSON 缓存，不上传。
+
+本次去重后共 **3,746 个上游文件，767,710,792 字节（约 732.15 MiB / 0.715 GiB）**。包含组件元数据列出的跨平台原生库，不只是 Windows；不包含整合包 ZIP、Java、模组下载、元数据自身或服务器 JAR。
+
+实际镜像 URL 未确定，现在使用保留域名 `https://mirror.invalid/niijima/` 生成示例。资源包可以先解压部署，但启动器使用前必须按最终 URL 完成元数据定稿；现提供完全离线的定稿脚本，自动重算所有元数据摘要。
+
+## 发布目录和 URL
+
+假设 copyparty 将 `publish/` 映射为 `https://你的域名/niijima/`：
+
+```text
+publish/
+├── packs/
+│   └── pack.zip                         # 手工放入审核后的新岛整合包
+├── meta/v1/
+│   ├── index.json
+│   ├── net.minecraft/
+│   │   ├── index.json
+│   │   └── 1.20.1.json
+│   ├── net.minecraftforge/
+│   │   ├── index.json
+│   │   └── 47.4.6.json
+│   └── org.lwjgl3/
+│       ├── index.json
+│       └── 3.3.1.json
+├── files/
+│   ├── piston-data.mojang.com/...       # Minecraft 客户端
+│   ├── piston-meta.mojang.com/...       # 原样保留的资源索引
+│   ├── libraries.minecraft.net/...      # Minecraft / LWJGL 库
+│   ├── maven.minecraftforge.net/...     # Forge installer 及依赖
+│   └── files.prismlauncher.org/...      # ForgeWrapper 等 Prism 依赖
+└── assets/
+    └── <hash前两位>/<完整hash>           # 声音、材质等资源对象
+```
+
+让客户端直接 GET 对应文件，而不是目录浏览页面。下载地址需可由玩家访问；不要将需要交互登录的页面 URL 当成直链。完整 host 列表和路径以清单为准。
+
+2026-10-29 按用户要求移除首页常驻设置按钮。包地址尚未配置或格式无效时，点击「下载游戏」会弹出配置对话框，可填写下表各项。已有有效地址需要更换时，关闭启动器后编辑其实际数据目录的启动器配置文件中对应键（原版名为 `prismlauncher.cfg`，NiijimaLauncher 独立品牌以安装器文档为准）；清空 `NiijimaPackUrl` 可在下次下载时重新进入配置。
+
+| 输入框 | 配置键 | 示例值 |
+| --- | --- | --- |
+| 整合包地址 | `NiijimaPackUrl` | `https://你的域名/niijima/packs/pack.zip` |
+| 元数据镜像 | `MetaURLOverride` | `https://你的域名/niijima/meta/v1/` |
+| 资源镜像 | `ResourceURLOverride` | `https://你的域名/niijima/assets/` |
+
+镜像留空使用 Prism 原来源。**两个镜像设置全局生效**，包括从「进入 Prism」管理的其他实例；此最小元数据服务只列出以上版本。要安装其他版本，先清空镜像设置恢复原来源，或另行扩展镜像清单。更换镜像后，已有组件元数据缓存可能仍含旧 URL；冷缓存测试使用新的独立数据目录，不直接删除用户数据。
+
+## 生成与下载命令
+
+脚本：`tools/niijima/prepare_mirror.py`，Python 3.10+，PATH 上的 curl。默认只下载小体积 JSON 并生成清单，不下载二进制文件。
+
+```powershell
+python -X utf8 'D:\mydata\Repositories\PrismLauncher\tools\niijima\prepare_mirror.py' `
+  --output 'D:\mydata\Agents\Minecraft相关\本地资源\Prism镜像准备' `
+  --base-url 'https://你的真实域名/niijima/'
+```
+
+准备完整发布树时，在同一命令末尾添加 `--download-files`；如需显式代理，再添加 `--proxy http://127.0.0.1:44554`。脚本串行下载、显示 curl 速度/进度、按上游 SHA1 和字节数检查、失败即停止；已完成且摘要匹配的文件可复用。单文件超时 30 分钟。没有上传、部署或删除服务端文件的逻辑。
+
+成功下载全部清单文件后才生成 `download-complete.json`，清单生成不能替代这个完成标志；整合包 ZIP 仍需自行加入。更换 Minecraft/Forge 范围时使用新的输出目录，避免旧版本文件残留；本次 `_sources` 缓存固定当前上游快照，想更新上游元数据也使用新的输出目录。
+
+不要只改版本 JSON 内的 URL：脚本同时重算组件索引、根索引中的 SHA256。资源索引内容保持原样，保留原 SHA1；资源对象通过 `ResourceURLOverride` 改变地址。
+
+## 官方来源
+
+| 用途 | 来源 |
+| --- | --- |
+| Prism Minecraft 元数据 | [net.minecraft/1.20.1.json](https://meta.prismlauncher.org/v1/net.minecraft/1.20.1.json) |
+| Prism Forge 元数据 | [net.minecraftforge/47.4.6.json](https://meta.prismlauncher.org/v1/net.minecraftforge/47.4.6.json) |
+| Prism LWJGL 元数据 | [org.lwjgl3/3.3.1.json](https://meta.prismlauncher.org/v1/org.lwjgl3/3.3.1.json) |
+| Mojang 1.20.1 客户端 | [client.jar](https://piston-data.mojang.com/v1/objects/0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838/client.jar) |
+| Mojang 资源索引 | [1.20.1 对应 asset index 5](https://piston-meta.mojang.com/v1/packages/62b36534d83c028050e6fafe8c742879d1f3f1ca/5.json) |
+| Forge 发布页 | [Minecraft 1.20.1](https://files.minecraftforge.net/net/minecraftforge/forge/index_1.20.1.html)（仍固定 47.4.6，不取最新） |
+| Forge installer | [forge-1.20.1-47.4.6-installer.jar](https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.4.6/forge-1.20.1-47.4.6-installer.jar) |
+| ForgeWrapper | [prism-2026-08-01.jar](https://files.prismlauncher.org/maven/io/github/zekerzhayard/ForgeWrapper/prism-2026-08-01/ForgeWrapper-prism-2026-08-01.jar) |
+
+Minecraft 客户端和全部依赖的精确直链都在 `download-manifest.json` / `official-sources.txt`，避免手抄几千条路径。Forge installer 本次 SHA1 `c256d27349c6ce4b3a527fa61a89498997251ebb`，大小 6,077,386 字节。
+
+## 覆盖边界与上线验收
+
+已分析的是 Prism 元数据所声明的文件与资源对象。Java 自动下载、Microsoft 登录、Modrinth/CurseForge API、整合包索引中的模组直链和启动器自身更新不在此镜像范围内。Forge 首次启动还包含安装器处理步骤；真实服务器尚未配置，不能把静态闭包当成整套游戏已离线验证。
+
+URL 确定并上传后，用独立空数据目录验证：导入真实 pack.zip、查看 copyparty 请求和 Prism 日志、完成 Java/Forge 首次处理、登录并进主菜单；再重启验证缓存复用。镜像中断时沿用原任务失败/重试提示，本轮没有添加自动回退官方源；用户可以清空镜像配置恢复来源。首次启动要保留原文件完整性校验。
+
+## 2026-10-29 完整部署 tar.gz
+
+交付目录：`D:/mydata/Agents/Minecraft相关/本地资源/Prism镜像部署`。
+
+- 压缩包：`niijima-mirror-mc1.20.1-forge47.4.6-20261029.tar.gz`。
+- 解包目录：`niijima-mirror/`，copyparty **只公开其中的 `publish/`**。
+- 部署说明：包内 `README.md`；独立副本为交付目录的 `README-deploy.md`。
+- 3,746 个上游资源，共 767,710,792 字节，逐文件 SHA1/长度一致；包含本机既有 Minecraft 缓存的校验复用和官方源补缺下载。未修改缓存源文件。
+- 不包含正式 `pack.zip`、Java、账号服务或模组下载镜像。`publish/packs/` 留空，整合包应另外提供或使用独立 URL。
+- 最终网站根 URL 尚未提供，因此元数据仍有 `mirror.invalid` 占位，`deployment-status.json` 明确为 payload 完整 / metadata 未定稿；不能把包已生成说成启动器已能使用镜像。
+
+服务器有 Python 3.10+ 时，解压后执行：
+
+```sh
+tar -xzf niijima-mirror-mc1.20.1-forge47.4.6-20261029.tar.gz -C /srv/copyparty
+python3 /srv/copyparty/niijima-mirror/configure_mirror.py \
+  --base-url 'https://你的域名/niijima/'
+```
+
+将 `/srv/copyparty/niijima-mirror/publish/` 映射到该 HTTPS 根 URL。`configure_mirror.py` 和 `prepare_mirror.py` 位于解包根目录，使用 `_sources/` 的冻结上游 JSON，完全不联网；重写绝对 URL、重算版本→组件→根索引的 SHA256，保持资源文件列表、SHA1 和字节大小不变。生成 `launcher-settings.txt` 和更新后的 `deployment-status.json`。不要只用文本替换 URL。
+
+也可先部署文件，再把 URL 提供给 agent：先检查资源可达性，再在本机给出仅含 `publish/meta/v1/` 的小补丁，覆盖服务器元数据；不需要再次上传整个资源包。资源和元数据分别完成，不改客户端下载代码。
+
+### 下载与验证记录
+
+原 curl+44554 可下载部分 Mojang 小资源，但对后续 Forge/libraries 请求连接超时；10809 当时不可用。改用 Windows/.NET 系统线路后补齐大部分，最后三个 EOF/TLS 中断文件通过 curl `--noproxy '*'` 直连取得，均匹配原清单摘要。没有关闭 TLS/哈希验证，也没有使用第三方源替换；这只是 2026-10-29 的线路表现，不是永久代理排名。
+
+可复用的 Windows 下载入口为 `tools/niijima/download_mirror_windows.ps1`（PowerShell 7+，最多四路，错误停止后保留已验证文件），例如：
+
+```powershell
+pwsh -File tools/niijima/download_mirror_windows.ps1 -Output 'D:/mydata/Agents/Minecraft相关/本地资源/Prism镜像准备'
+```
+
+该脚本读取已生成清单，复用已校验缓存，只有全部文件匹配才写 `download-complete.json`，不要求下载时已经知道最终网站 URL。串行 curl 下载仍可用旧生成器的 `--download-files`。
+
+离线定稿已在隔离临时目录连续验证两个不同根 URL：所有下载字段前缀、版本/组件/根索引摘要链、3,746 文件闭包保持一致，无完整下载凭据时不伪造完成标志。PowerShell 下载器通过语法检查，缓存全命中路径实测通过；本批实际补缺使用同样的 Invoke-WebRequest + SHA1/大小核对逻辑。
+
+归档使用 PATH 上 7z 先 tar 后 gzip，两步退出码均为 0、输出 Everything is Ok；按照用户约定没有额外解包/归档完整性测试。尚未上传、部署或实际通过此镜像启动游戏。
+
+压缩包大小：676,415,492 字节（645.08 MiB）。
+
+### 2026-10-29 用户确认的范围
+
+用户接受保留其他平台，以便未来使用；要求不夹带其他 Minecraft 版本。已核对组件仅 `net.minecraft 1.20.1`、`net.minecraftforge 47.4.6`、`org.lwjgl3 3.3.1`。3,746 文件中有 3,575 个资源对象（651,642,397 字节）和 171 个本体/索引/库文件（116,068,395 字节）。明确 Linux/macOS 文件 37 个、5,291,298 字节，另有 Windows 不同架构；这是指定版本的完整镜像，不是 Windows x64 最小集。声音、语言等资源本来按索引拆分为大量小文件，数量不是模组数。

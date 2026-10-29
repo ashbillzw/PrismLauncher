@@ -1,5 +1,20 @@
 # copyparty 镜像准备
 
+## 2026-10-30 04:21 Java 镜像已补齐（本地＋远端）
+
+用户要求补入其使用的 Adoptium 版本。已核对本机 `C:/mydata/Program Files/java/jdk-17.0.20.1+1/release`：Eclipse Adoptium Temurin 17.0.20.1+1、Windows x64、JDK。使用同版本官方原始 ZIP，不重新打包安装目录，也未升级到其他版本。
+
+- 上游：[Temurin 17.0.20.1+1](https://github.com/adoptium/temurin17-binaries/releases/tag/jdk-17.0.20.1%2B1)。文件 `OpenJDK17U-jdk_x64_windows_hotspot_17.0.20.1_1.zip`，190,817,615 字节；SHA-256 `e53a79c3c3d86865bd7e787903884331068e71321714ffd44f145785affc7cb0`，本地及远端下载均与官方发布资产摘要一致。
+- 镜像 ZIP 相对路径：`files/adoptium/temurin17/OpenJDK17U-jdk_x64_windows_hotspot_17.0.20.1_1.zip`；元数据中的 URL 使用既定 ashbill 镜像根。
+- 新增 `meta/v1/net.minecraft.java/java17.json`、`meta/v1/net.minecraft.java/index.json`；根 `meta/v1/index.json` 新增 Java 组件并串联 SHA-256，保留原三个组件。仅声明本次实际准备的 Windows x64 Java 17，未宣称其他平台/Java版本可用。
+- 原生运行时匹配：`name=java-runtime-gamma`（MC 1.20.1 的逻辑运行时名称），`runtimeOS=windows-x64`、`downloadType=archive`、`packageType=jdk`、`vendor=Eclipse Adoptium`、`checksum.type=sha256`。实际版本仍明确为 17.0.20.1+1。复用 AutoInstallJava/ArchiveDownloadTask，ZIP 顶层及 bin/javaw.exe 已核对，无源码改动、无编译。
+- 本地镜像：`C:/mydata/Agents/Codex-CreateTrainResync/prism-local-test/mirror/niijima-mirror/`。准备脚本、原始官方数据、旧索引备份、部署计划和 HTTP 检查结果在仓库外 `prism-java-mirror/`。
+- 远端：通过自研共享终端写入 `custom-sz-cn:/synology/MCShare/minecraft/niijima-launcher/niijima-mirror/`。发布前确认旧根索引 SHA-256 与本地一致，备份至 `/home/ashbill/niijima-java-mirror-backup-20261030-0419/index.json`。先完整下载/校验 ZIP，再发布 Java 元数据，最后原子替换根索引；未改 nginx、未重启服务。
+- 验证：本地元数据哈希链、运行时选择及 ZIP release 信息通过；远端 ZIP 官方 SHA-256 和三份元数据写入摘要通过。系统 curl 访问正式 ashbill 地址：三份 JSON 全部匹配本地预期 SHA-256，ZIP HEAD 200、Content-Length 正确。Python urllib 曾 TLS EOF，改用系统 curl 完成验证，未禁用证书校验。
+- 尚未验证：用户启动器实际自动下载/解压 Java、Forge 首次处理及进入游戏；不能把资源发布成功写成游戏已启动。用户重启启动器再试。此次没有改实例 JavaPath、账号或已有世界。
+
+下方“不含 Java”“Java 元数据尚未补齐”均为旧状态，仅对旧归档成立。此前整镜像 tar.gz 未重新生成，不能用旧归档覆盖当前 Java 组件及新根索引；后续重新打镜像时须包含本节文件。当前镜像范围仍只覆盖已确认的 MC 1.20.1 / Forge 47.4.6，以及本节 Windows x64 Java17。
+
 ## 2026-10-30 状态更新：正式下载地址统一到 ashbill
 
 用户要求：启动器默认入口与服务器镜像元数据中的下载地址统一使用 ashbill 域名。以后生成、更新或重新部署镜像时，也必须按以下根地址定稿，不能重新上传带 yake 绝对地址的旧元数据。

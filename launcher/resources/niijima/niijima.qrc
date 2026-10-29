@@ -1,0 +1,10 @@
+<RCC><qresource prefix="/niijima">
+  <file>index_v2.json</file>
+  <file>mmc_zh.qm</file>
+  <file>ZenMaruGothic-Bold.ttf</file>
+  <file>OFL.txt</file>
+  <file>NotoSansSC-VariableFont_wght.ttf</file>
+  <file>NotoSansSC-OFL.txt</file>
+  <file>home-background.png</file>
+  <file>home-title.svg</file>
+</qresource></RCC>

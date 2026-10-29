@@ -55,6 +55,7 @@ class LaunchController;
 class LocalPeer;
 class InstanceWindow;
 class MainWindow;
+class NiijimaHomeWindow;
 class ViewLogWindow;
 class GenericPageProvider;
 class QFile;
@@ -120,6 +121,7 @@ class Application : public QApplication {
     SettingsObject* playtimeSettings() const { return m_playtimeSettings.get(); }
 
     static QIcon logo();
+    static QIcon prismLogo();
 
     ThemeManager* themeManager() { return m_themeManager.get(); }
 
@@ -185,6 +187,7 @@ class Application : public QApplication {
 
     InstanceWindow* showInstanceWindow(MinecraftInstance* instance, const QString& page = QString());
     MainWindow* showMainWindow(bool minimized = false);
+    void showNiijimaHome();
     ViewLogWindow* showLogWindow();
 
     void updateIsRunning(bool running);
@@ -285,6 +288,7 @@ class Application : public QApplication {
 
     // main window, if any
     MainWindow* m_mainWindow = nullptr;
+    NiijimaHomeWindow* m_niijimaHome = nullptr;
 
     // log window, if any
     ViewLogWindow* m_viewLogWindow = nullptr;

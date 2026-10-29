@@ -1,0 +1,135 @@
+; NiijimaLauncher: per-user installer with independent Windows identities.
+!include "MUI2.nsh"
+!include "LogicLib.nsh"
+!include "FileFunc.nsh"
+!include "x64.nsh"
+
+!ifndef RUNTIME_DIR
+  !error "Pass /DRUNTIME_DIR=<prepared runtime directory>"
+!endif
+!ifndef UNINSTALL_FILES
+  !error "Pass /DUNINSTALL_FILES=<generated uninstall_files.nsh>"
+!endif
+
+Unicode true
+AllowSkipFiles off
+RequestExecutionLevel user
+SetCompressor /SOLID lzma
+Name "@Launcher_DisplayName@"
+OutFile "@CMAKE_BINARY_DIR@/dist/@Launcher_CommonName@-Setup.exe"
+InstallDir "$LOCALAPPDATA\Programs\NiijimaLauncher"
+InstallDirRegKey HKCU "Software\NiijimaLauncher" "InstallDir"
+
+!define INSTALL_KEY "Software\NiijimaLauncher"
+!define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\@Launcher_CommonName@"
+!define SCHEME_KEY "Software\Classes\@Launcher_APP_BINARY_NAME@"
+!define RUN_COMMAND '$\"$INSTDIR\@Launcher_APP_BINARY_NAME@.exe$\" $\"%1$\"'
+!define MUI_ICON "@CMAKE_BINARY_DIR@/program_info/@Launcher_APP_BINARY_NAME@.ico"
+!define MUI_UNICON "@CMAKE_BINARY_DIR@/program_info/@Launcher_APP_BINARY_NAME@.ico"
+!define MUI_ABORTWARNING
+
+!insertmacro MUI_PAGE_WELCOME
+!define MUI_COMPONENTSPAGE_NODESC
+!insertmacro MUI_PAGE_COMPONENTS
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE ValidateInstallDir
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!define MUI_FINISHPAGE_RUN "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe"
+!define MUI_FINISHPAGE_RUN_NOTCHECKED
+!insertmacro MUI_PAGE_FINISH
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_LANGUAGE "SimpChinese"
+!insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "Japanese"
+
+VIProductVersion "@Launcher_VERSION_NAME4@"
+VIFileVersion "@Launcher_VERSION_NAME4@"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "@Launcher_DisplayName@"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "@Launcher_DisplayName@ Installer"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "@Launcher_Copyright@"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "@Launcher_VERSION_NAME4@"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "@Launcher_VERSION_NAME4@"
+
+Function ValidateInstallDir
+  ; Shared Qt DLLs make mixing a fork into an official Prism directory unsafe.
+  IfFileExists "$INSTDIR\prismlauncher.exe" 0 +3
+    MessageBox MB_OK|MB_ICONSTOP "This folder contains official Prism Launcher. Choose a separate NiijimaLauncher installation folder." /SD IDOK
+    Abort
+FunctionEnd
+
+Section "@Launcher_DisplayName@" Core
+  SectionIn RO
+  SetShellVarContext current
+  Call ValidateInstallDir
+  SetOutPath "$INSTDIR"
+  File /r "${RUNTIME_DIR}\*"
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+
+  WriteRegStr HKCU "${INSTALL_KEY}" "InstallDir" "$INSTDIR"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "@Launcher_DisplayName@"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe"
+  WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
+  WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
+  WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "AshBill"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "@Launcher_VERSION_NAME@"
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  WriteRegDWORD HKCU "${UNINST_KEY}" "EstimatedSize" $0
+
+  ; Never register curseforge://, modrinth://, prismlauncher:// or default file associations.
+  WriteRegStr HKCU "${SCHEME_KEY}" "" "URL:NiijimaLauncher"
+  WriteRegStr HKCU "${SCHEME_KEY}" "URL Protocol" ""
+  WriteRegStr HKCU "${SCHEME_KEY}\DefaultIcon" "" '$\"$INSTDIR\@Launcher_APP_BINARY_NAME@.exe$\",0'
+  WriteRegStr HKCU "${SCHEME_KEY}\shell\open\command" "" '${RUN_COMMAND}'
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0x1000, p 0, p 0)'
+SectionEnd
+
+Section "Start Menu Shortcut" StartMenu
+  SetShellVarContext current
+  CreateDirectory "$SMPROGRAMS\NiijimaLauncher"
+  CreateShortcut "$SMPROGRAMS\NiijimaLauncher\@Launcher_DisplayName@.lnk" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" "" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" 0
+SectionEnd
+
+Section /o "Desktop Shortcut" Desktop
+  SetShellVarContext current
+  CreateShortcut "$DESKTOP\@Launcher_DisplayName@.lnk" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" "" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" 0
+SectionEnd
+
+Section "Uninstall"
+  SetShellVarContext current
+
+  ; An older parallel installation must not erase registrations now owned by a newer one.
+  ReadRegStr $0 HKCU "${INSTALL_KEY}" "InstallDir"
+  ${If} $0 == $INSTDIR
+    DeleteRegKey HKCU "${INSTALL_KEY}"
+    Delete "$SMPROGRAMS\NiijimaLauncher\@Launcher_DisplayName@.lnk"
+    RMDir "$SMPROGRAMS\NiijimaLauncher"
+    Delete "$DESKTOP\@Launcher_DisplayName@.lnk"
+  ${EndIf}
+  ReadRegStr $0 HKCU "${UNINST_KEY}" "InstallLocation"
+  ${If} $0 == $INSTDIR
+    DeleteRegKey HKCU "${UNINST_KEY}"
+  ${EndIf}
+  ReadRegStr $0 HKCU "${SCHEME_KEY}\shell\open\command" ""
+  ${If} $0 == '${RUN_COMMAND}'
+    DeleteRegKey HKCU "${SCHEME_KEY}"
+  ${EndIf}
+
+  ; Generated from the exact payload: remove only shipped files, then empty directories.
+  ; No recursive removal, and no user profile/data directory is ever removed.
+  !include "${UNINSTALL_FILES}"
+  Delete "$INSTDIR\uninstall.exe"
+  RMDir "$INSTDIR"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0x1000, p 0, p 0)'
+SectionEnd
+
+Function .onInit
+  SetShellVarContext current
+  ${IfNot} ${RunningX64}
+    MessageBox MB_OK|MB_ICONSTOP "This installer requires 64-bit Windows." /SD IDOK
+    Abort
+  ${EndIf}
+FunctionEnd

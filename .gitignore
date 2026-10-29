@@ -62,3 +62,9 @@ flatbuild
 
 # Snap
 *.snap
+
+# Isolated Niijima build and packaging outputs (legacy build cache retained)
+/build-ashbill/
+/install-ashbill/
+
+/install-niijima/

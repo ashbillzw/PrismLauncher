@@ -155,6 +155,7 @@ class InstanceList : public QAbstractListModel {
    signals:
     void instancesChanged();
     void instanceSelectRequest(QString instanceId);
+    void instanceCommitted(const InstanceTask* task, QString instanceId);
     void groupsChanged(QSet<QString> groups);
 
    public slots:

@@ -54,8 +54,17 @@ QString getCreditsHtml()
     QString fileContent = QString::fromUtf8(dataFile.readAll());
     dataFile.close();
 
-    return fileContent.arg(QObject::tr("%1 Developers").arg(BuildConfig.LAUNCHER_DISPLAYNAME), QObject::tr("MultiMC Developers"),
-                           QObject::tr("With special thanks to"));
+    // NiijimaLauncher attribution changes, 2026-10-29; preserve all upstream author entries.
+    const bool niijima = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher");
+    const QString upstreamName = niijima ? QStringLiteral("Prism Launcher") : BuildConfig.LAUNCHER_DISPLAYNAME;
+    const QString upstreamCredits = fileContent.arg(QObject::tr("%1 Developers").arg(upstreamName),
+                                                    QObject::tr("MultiMC Developers"), QObject::tr("With special thanks to"));
+    if (niijima) {
+        return QStringLiteral("<center><h3>NiijimaLauncher</h3>"
+                              "<p>AshBill</p><p>GPT-6 Astra（AI 开发协作）</p>"
+                              "<p>基于 Prism Launcher，保留原项目作者与致谢。</p></center>") + upstreamCredits;
+    }
+    return upstreamCredits;
 }
 
 QString getLicenseHtml()
@@ -89,7 +98,7 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
 
     ui->urlLabel->setOpenExternalLinks(true);
 
-    ui->icon->setPixmap(APPLICATION->logo().pixmap(64));
+    ui->icon->setPixmap(APPLICATION->prismLogo().pixmap(64));
     ui->title->setText(launcherName);
 
     ui->versionLabel->setText(BuildConfig.printableVersionString());

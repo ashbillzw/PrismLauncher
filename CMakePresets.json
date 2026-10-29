@@ -43,6 +43,23 @@
             "environment": {
                 "DEBUG_ADDRESS_SANITIZER": "1"
             }
+        },
+        {
+            "name": "niijima",
+            "displayName": "NiijimaLauncher",
+            "inherits": [
+                "default"
+            ],
+            "binaryDir": "${sourceDir}/build-ashbill",
+            "installDir": "${sourceDir}/install-niijima",
+            "cacheVariables": {
+                "Launcher_NIIJIMA_BRANDING": "ON",
+                "Launcher_APP_BINARY_NAME": "niijima-launcher",
+                "Launcher_UPDATER_GITHUB_REPO": "",
+                "Launcher_BUILD_ARTIFACT": "",
+                "Launcher_BUILD_UPDATER": "OFF",
+                "ENABLE_LTO": "OFF"
+            }
         }
     ],
     "buildPresets": [
@@ -60,6 +77,11 @@
             "name": "asan-tidy",
             "displayName": "ASan+clang-tidy",
             "configurePreset": "asan-tidy"
+        },
+        {
+            "name": "niijima",
+            "displayName": "NiijimaLauncher",
+            "configurePreset": "niijima"
         }
     ],
     "testPresets": [

@@ -26,6 +26,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QProcess>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QSettings>
 #include <QTimer>
@@ -49,7 +50,7 @@ class PrismExternalUpdater::Private {
     QDateTime lastCheck;
     std::unique_ptr<QSettings> settings;
 
-    QWidget* parent{};
+    QPointer<QWidget> parent;
 };
 
 PrismExternalUpdater::PrismExternalUpdater(QWidget* parent, const QString& appDir, const QString& dataDir)

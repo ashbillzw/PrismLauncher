@@ -50,6 +50,7 @@
 #include "tools/GenericProfiler.h"
 #include "ui/InstanceWindow.h"
 #include "ui/MainWindow.h"
+#include "ui/NiijimaHomeWindow.h"
 #include "ui/ToolTipFilter.h"
 #include "ui/ViewLogWindow.h"
 
@@ -162,6 +163,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include <shobjidl.h>
 #endif
 
 #include "console/Console.h"
@@ -309,6 +311,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     setApplicationDisplayName(QString("%1 %2").arg(BuildConfig.LAUNCHER_DISPLAYNAME, BuildConfig.printableVersionString()));
     setApplicationVersion(BuildConfig.printableVersionString() + "\n" + BuildConfig.GIT_COMMIT);
     setDesktopFileName(BuildConfig.LAUNCHER_APPID);
+#ifdef Q_OS_WIN32
+    SetCurrentProcessExplicitAppUserModelID(reinterpret_cast<LPCWSTR>(BuildConfig.LAUNCHER_APPID.utf16()));
+#endif
 
     // Don't quit on hiding the last window
     Application::setQuitOnLastWindowClosed(false);
@@ -454,6 +459,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
      * We want to initialize this before logging to avoid messing with the log of a potential already running copy.
      */
     auto appID = ApplicationId::fromPathAndVersion(QDir::currentPath(), BuildConfig.printableVersionString());
+    if (BuildConfig.LAUNCHER_APPID != QStringLiteral("org.prismlauncher.PrismLauncher"))
+        appID = ApplicationId::fromRawString(BuildConfig.LAUNCHER_APPID + "-" + appID.toString());
     {
         // FIXME: you can run the same binaries with multiple data dirs and they won't clash. This could cause issues for updates.
         m_peerInstance = new LocalPeer(this, appID);
@@ -648,6 +655,11 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         // Provide a fallback for migration from PolyMC
         m_settings.reset(new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "polymc.cfg", "multimc.cfg" }, this));
 
+        m_settings->registerSetting("NiijimaHomeEnabled", true);
+        m_settings->registerSetting("NiijimaPackUrl", QString());
+        m_settings->registerSetting("NiijimaInstanceIds", QStringList());
+        m_settings->registerSetting("NiijimaPreferredInstance", QString());
+        m_settings->registerSetting("NiijimaDefaultsApplied", false);
         // Theming
         m_settings->registerSetting("IconTheme", QString());
         m_settings->registerSetting("ApplicationTheme", QString());
@@ -969,6 +981,25 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     }
 
     // Themes
+    if (m_settings->get("NiijimaHomeEnabled").toBool() && !m_settings->get("NiijimaDefaultsApplied").toBool()) {
+        const bool freshProfile = m_settings->get("Language").toString().isEmpty() &&
+                                  m_settings->get("ApplicationTheme").toString().isEmpty() &&
+                                  m_settings->get("IconTheme").toString().isEmpty();
+        if (m_settings->get("Language").toString().isEmpty())
+            m_settings->set("Language", "zh");
+        if (m_settings->get("ApplicationTheme").toString().isEmpty())
+            m_settings->set("ApplicationTheme", "Windows");
+        if (m_settings->get("IconTheme").toString().isEmpty())
+            m_settings->set("IconTheme", "multimc");
+        if (freshProfile) {
+            m_settings->set("AutomaticJavaDownload", true);
+            m_settings->set("AutomaticJavaSwitch", true);
+            m_settings->set("UserAskedAboutAutomaticJavaDownload", true);
+            m_settings->set("DownloadGameFilesDuringInstanceCreation", true);
+        }
+        m_settings->set("NiijimaDefaultsApplied", true);
+    }
+
     m_themeManager = std::make_unique<ThemeManager>();
 
 #ifdef Q_OS_MACOS
@@ -1048,7 +1079,23 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     // load translations
     {
+        // Seed the default language for offline first launch; never overwrite user updates.
+        if (m_settings->get("NiijimaHomeEnabled").toBool()) {
+            QDir().mkpath("translations");
+            for (const auto& name : { "index_v2.json", "mmc_zh.qm" }) {
+                const auto destination = QString("translations/%1").arg(name);
+                if (!QFile::exists(destination)) {
+                    if (!QFile::copy(QString(":/niijima/%1").arg(name), destination)) {
+                        qWarning() << "Could not seed translation" << destination;
+                    } else {
+                        QFile::setPermissions(destination, QFile::ReadOwner | QFile::WriteOwner | QFile::ReadGroup | QFile::ReadOther);
+                    }
+                }
+            }
+        }
         m_translations.reset(new TranslationsModel("translations"));
+        if (m_settings->get("NiijimaHomeEnabled").toBool())
+            m_translations->selectLanguage(m_translations->selectedLanguage());
         m_translations->downloadIndex();
         qInfo() << "Your language is" << m_translations->selectedLanguage();
         qInfo() << "<> Translations loaded.";
@@ -1265,7 +1312,8 @@ bool Application::createSetupWizard()
     bool pasteInterventionRequired = settings()->get("PastebinURL") != "";
     bool validWidgets = m_themeManager->isValidApplicationTheme(settings()->get("ApplicationTheme").toString());
     bool validIcons = m_themeManager->isValidIconTheme(settings()->get("IconTheme").toString());
-    bool login = !m_accounts->anyAccountIsValid() && (capabilities().testAnyFlags(Application::SupportsMSA));
+    bool login = !m_settings->get("NiijimaHomeEnabled").toBool() && !m_accounts->anyAccountIsValid() &&
+                 (capabilities().testAnyFlags(Application::SupportsMSA));
     bool themeInterventionRequired = !validWidgets || !validIcons;
     bool wizardRequired = javaRequired || languageRequired || pasteInterventionRequired || themeInterventionRequired || askjava || login;
     if (wizardRequired) {
@@ -1411,9 +1459,11 @@ void Application::performMainStartupAction()
         }
     }
     if (!m_mainWindow) {
-        // normal main window
-        showMainWindow(false);
-        qDebug() << "<> Main window shown.";
+        if (m_settings->get("NiijimaHomeEnabled").toBool() && m_urlsToImport.isEmpty() && !m_showMainWindow) {
+            showNiijimaHome();
+        } else {
+            showMainWindow(false);
+        }
     }
 
     // initialize the updater
@@ -1424,7 +1474,7 @@ void Application::performMainStartupAction()
         m_updater.reset(new MacSparkleUpdater());
 #endif
 #else
-        m_updater.reset(new PrismExternalUpdater(m_mainWindow, m_rootPath, m_dataPath));
+        m_updater.reset(new PrismExternalUpdater(m_mainWindow ? static_cast<QWidget*>(m_mainWindow) : m_niijimaHome, m_rootPath, m_dataPath));
 #endif
         qDebug() << "<> Updater started.";
     }
@@ -1549,6 +1599,11 @@ QIcon Application::logo()
     return QIcon(":/" + BuildConfig.LAUNCHER_SVGFILENAME);
 }
 
+QIcon Application::prismLogo()
+{
+    return QIcon(QStringLiteral(":/upstream-prismlauncher.svg"));
+}
+
 bool Application::openJsonEditor(const QString& filename)
 {
     const QString file = QDir::current().absoluteFilePath(filename);
@@ -1586,8 +1641,10 @@ bool Application::launch(MinecraftInstance* instance,
         controller->setOfflineName(offlineName);
         if (window) {
             controller->setParentWidget(window);
-        } else if (m_mainWindow) {
+        } else if (m_mainWindow && m_mainWindow->isVisible()) {
             controller->setParentWidget(m_mainWindow);
+        } else if (m_niijimaHome) {
+            controller->setParentWidget(m_niijimaHome);
         }
         connect(controller.get(), &LaunchController::finished, this, &Application::controllerFinished);
         addRunningInstance();
@@ -1704,6 +1761,18 @@ void Application::ShowGlobalSettings(class QWidget* parent, QString openPage)
     }
 }
 
+void Application::showNiijimaHome()
+{
+    if (!m_niijimaHome) {
+        m_niijimaHome = new NiijimaHomeWindow();
+        ++m_openWindows;
+        connect(m_niijimaHome, &NiijimaHomeWindow::isClosing, this, &Application::on_windowClose);
+    }
+    m_niijimaHome->show();
+    m_niijimaHome->raise();
+    m_niijimaHome->activateWindow();
+}
+
 MainWindow* Application::showMainWindow(bool minimized)
 {
     if (m_mainWindow) {
@@ -1785,6 +1854,8 @@ InstanceWindow* Application::showInstanceWindow(MinecraftInstance* instance, con
 void Application::on_windowClose()
 {
     m_openWindows--;
+    if (qobject_cast<NiijimaHomeWindow*>(sender()))
+        m_niijimaHome = nullptr;
     auto* instWindow = qobject_cast<InstanceWindow*>(sender());
     if (instWindow) {
         QMutexLocker locker(&m_instanceExtrasMutex);

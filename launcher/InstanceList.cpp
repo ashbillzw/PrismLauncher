@@ -1122,6 +1122,7 @@ bool InstanceList::commitStagedInstance(const QString& path, const InstanceTask&
     }
 
     saveGroupList();
+    emit instanceCommitted(&instanceTask, instID);
     return true;
 }
 

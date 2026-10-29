@@ -383,7 +383,7 @@ void LaunchController::launchInstance()
         return;
     }
 
-    const auto* console = qobject_cast<InstanceWindow*>(m_parentWidget);
+    const auto* console = qobject_cast<InstanceWindow*>(m_parentWidget.data());
     const auto showConsole = m_instance->settings()->get("ShowConsole").toBool();
     if (!console && showConsole) {
         APPLICATION->showInstanceWindow(m_instance);

@@ -1,3 +1,16 @@
+# NiijimaLauncher
+
+新岛铁道的 Prism Launcher 定制分支，由 **AshBill** 维护，**GPT-6 Astra** 参与 AI 开发协作。修改日期：2026-10-29。
+
+- 本分支源码：[ashbillzw/PrismLauncher](https://github.com/ashbillzw/PrismLauncher)。
+- 基于 [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher)，保留 Prism、PolyMC、MultiMC 及全部原作者/依赖的 credit 与许可通知；不是上游官方发行版。
+- 许可为 **GPL-3.0-only**：见 [LICENSE](LICENSE)、[COPYING.md](COPYING.md)；署名、源码与运行说明见 [发行 README](program_info/niijima/README-runtime.md)。
+- 本分支构建方法见 [Windows 安装器打包](agent/Windows安装器打包.md)，接手先读 [handoff](agent/handoff.md)。
+
+下方保留上游 README 作为 Prism 项目资料，其下载、社区及构建状态链接指向上游，不代表 NiijimaLauncher 的发行状态。
+
+---
+
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="/program_info/org.prismlauncher.PrismLauncher.logo-darkmode.svg">

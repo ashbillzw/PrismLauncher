@@ -810,6 +810,8 @@ SET(LAUNCHER_SOURCES
     logs/AnonymizeLog.h
 
     # GUI - windows
+    ui/NiijimaHomeWindow.h
+    ui/NiijimaHomeWindow.cpp
     ui/MainWindow.h
     ui/MainWindow.cpp
     ui/InstanceWindow.h
@@ -1195,6 +1197,7 @@ if(WIN32)
 endif()
 
 qt_add_resources(LAUNCHER_RESOURCES
+    resources/niijima/niijima.qrc
     resources/backgrounds/backgrounds.qrc
     resources/multimc/multimc.qrc
     resources/pe_dark/pe_dark.qrc
@@ -1559,4 +1562,8 @@ if(CLANG_FORMAT)
     )
 else()
     message(WARNING "Unable to find `clang-format`. Not creating custom target")
+endif()
+
+if(WIN32)
+    target_link_libraries(Launcher_logic shell32)
 endif()

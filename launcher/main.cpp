@@ -48,6 +48,8 @@ int main(int argc, char* argv[])
     console::WindowsConsoleGuard _consoleGuard;
 #endif
 
+    Q_INIT_RESOURCE(niijima);
+
     // initialize Qt
     Application app(argc, argv);
     switch (app.status()) {
@@ -57,6 +59,7 @@ int main(int argc, char* argv[])
             Q_INIT_RESOURCE(backgrounds);
             Q_INIT_RESOURCE(documents);
             Q_INIT_RESOURCE(prismlauncher);
+            app.setWindowIcon(app.prismLogo());
 
             Q_INIT_RESOURCE(pe_dark);
             Q_INIT_RESOURCE(pe_light);

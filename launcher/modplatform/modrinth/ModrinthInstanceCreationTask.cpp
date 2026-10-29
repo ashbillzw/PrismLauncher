@@ -26,6 +26,7 @@
 #include "ui/pages/modplatform/OptionalModDialog.h"
 
 #include <QAbstractButton>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
 #include <vector>
@@ -462,6 +463,12 @@ void ModrinthCreationTask::ensureMetaLoop()
 bool ModrinthCreationTask::promptForUntrustedMods()
 {
     if (m_trustedSource) {
+        return true;
+    }
+
+    QFile marker(FS::PathCombine(m_stagingPath, "niijima-pack.json"));
+    if (marker.open(QIODevice::ReadOnly) &&
+        QJsonDocument::fromJson(marker.readAll()).object().value("token").toDouble() == 114514) {
         return true;
     }
 

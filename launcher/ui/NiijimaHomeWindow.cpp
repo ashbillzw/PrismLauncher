@@ -13,6 +13,7 @@
 #include <QGraphicsBlurEffect>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsScene>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -32,6 +33,22 @@
 #include "ui/MainWindow.h"
 
 namespace {
+class HomeWordmark : public QWidget {
+public:
+    explicit HomeWordmark(QWidget* parent) : QWidget(parent), m_icon(QStringLiteral(":/niijima/home-title.svg")) {}
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        // Paint in logical coordinates; QIcon handles the current screen's DPR and SVG aspect ratio.
+        QPainter painter(this);
+        m_icon.paint(&painter, rect(), Qt::AlignLeft | Qt::AlignVCenter);
+    }
+
+private:
+    const QIcon m_icon;
+};
+
 QPixmap createFrostedBackground()
 {
     const QPixmap source(":/niijima/home-background.png");
@@ -94,7 +111,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton { background: rgba(30, 36, 47, 155); border-color: rgba(255, 249, 238, 80); color: #fff9ee; }
         QWidget#homeBody QPushButton:hover { background: rgba(65, 73, 86, 190); border-color: rgba(255, 249, 238, 145); }
         QWidget#homeBody QPushButton:pressed { background: rgba(19, 26, 37, 210); }
-        QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 28px; font-weight: 700; padding: 18px 28px; }
+        QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 34px; font-weight: 700; letter-spacing: 2px; min-width: 160px; padding: 18px 36px; }
         QWidget#homeBody QPushButton#primary:hover { background: #ffad28; }
         QWidget#homeBody QPushButton#primary:pressed { background: #de8600; }
         QWidget#homeBody QPushButton#prism { background: rgba(84, 75, 70, 205); border-color: rgba(194, 181, 166, 130); border-radius: 8px; font-size: 13px; padding: 8px 14px; }
@@ -141,13 +158,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     auto* badge = new QLabel(QStringLiteral("NIIJIMA RAILWAYS"), body);
     badge->setStyleSheet("font-size: 12px; letter-spacing: 3px; color: #f5dec2;");
     hero->addWidget(badge, 0, Qt::AlignLeft);
-    auto* wordmark = new QLabel(body);
+    auto* wordmark = new HomeWordmark(body);
     wordmark->setObjectName("homeWordmark");
     wordmark->setAccessibleName(QStringLiteral("新島鉄道"));
-    // Render the outlined custom glyph from SVG at high resolution for crisp high-DPI display.
-    auto titlePixmap = QIcon(QStringLiteral(":/niijima/home-title.svg")).pixmap(QSize(1776, 440));
-    titlePixmap.setDevicePixelRatio(4.0);
-    wordmark->setPixmap(titlePixmap);
     wordmark->setFixedSize(444, 110);
     hero->addWidget(wordmark, 0, Qt::AlignLeft);
     auto* slogan = new QLabel(QStringLiteral("==しゅっぱつしんこう！！=="), body);

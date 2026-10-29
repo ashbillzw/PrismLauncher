@@ -64,7 +64,7 @@ class ConcurrentTask : public Task {
     auto getStepProgress() const -> TaskStepProgressList override;
 
     //! Adds a task to execute in this ConcurrentTask
-    void addTask(Task::Ptr task);
+    void addTask(Task::Ptr task, double progressWeight = 1);
 
    public slots:
     bool abort() override;
@@ -91,6 +91,7 @@ class ConcurrentTask : public Task {
     unsigned int totalSize() const { return static_cast<unsigned int>(m_queue.size() + m_doing.size() + m_done.size()); }
 
     virtual void updateState();
+    void updateProgressFraction();
 
     void startSubTask(Task::Ptr task);
 
@@ -103,6 +104,7 @@ class ConcurrentTask : public Task {
     QHash<Task*, Task::Ptr> m_succeeded;
 
     QHash<QUuid, std::shared_ptr<TaskStepProgress>> m_task_progress;
+    QHash<Task*, double> m_progressWeights;
 
     int m_total_max_size;
 };

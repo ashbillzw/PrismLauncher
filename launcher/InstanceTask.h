@@ -52,7 +52,7 @@ class InstanceTask : public Task {
     void setOverride(bool override, const QString& instanceIdToOverride = {});
 
     void scheduleToDelete(QWidget* parent, const QDir& dir, const QString& path, bool checkDisabled = false);
-    void downloadFiles(MinecraftInstance* inst);
+    void downloadFiles(MinecraftInstance* inst, bool weightedProgress = false);
 
    public slots:
     bool abort() override;

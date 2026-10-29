@@ -56,8 +56,9 @@ auto ConcurrentTask::getStepProgress() const -> TaskStepProgressList
     return m_task_progress.values();
 }
 
-void ConcurrentTask::addTask(Task::Ptr task)
+void ConcurrentTask::addTask(Task::Ptr task, double progressWeight)
 {
+    m_progressWeights.insert(task.get(), qMax(0.0, progressWeight));
     m_queue.append(task);
 }
 
@@ -104,8 +105,10 @@ void ConcurrentTask::clear()
     m_failed.clear();
     m_queue.clear();
     m_task_progress.clear();
+    m_progressWeights.clear();
 
     m_progress = 0;
+    setProgressFraction(0);
 }
 
 void ConcurrentTask::executeNextSubTask()
@@ -160,6 +163,7 @@ void ConcurrentTask::startSubTask(Task::Ptr next)
     connect(next.get(), &Task::stepProgress, this, &ConcurrentTask::stepProgress);
 
     connect(next.get(), &Task::progress, this, [this, next](qint64 current, qint64 total) { subTaskProgress(next, current, total); });
+    connect(next.get(), &Task::progressFraction, this, [this] { updateProgressFraction(); });
 
     m_doing.insert(next.get(), next);
 
@@ -241,6 +245,7 @@ void ConcurrentTask::subTaskProgress(Task::Ptr task, qint64 current, qint64 tota
 
 void ConcurrentTask::updateState()
 {
+    updateProgressFraction();
     if (totalSize() > 1) {
         setProgress(m_done.count(), totalSize());
         setStatus(tr("Executing %1 task(s) (%2 out of %3 are done)")
@@ -256,4 +261,18 @@ void ConcurrentTask::updateState()
         }
         setStatus(status);
     }
+}
+
+void ConcurrentTask::updateProgressFraction()
+{
+    double completed = 0;
+    double total = 0;
+    for (auto it = m_progressWeights.cbegin(); it != m_progressWeights.cend(); ++it) {
+        total += it.value();
+        if (m_done.contains(it.key()) && !m_failed.contains(it.key()))
+            completed += it.value();
+        else if (m_doing.contains(it.key()))
+            completed += it.value() * it.key()->getProgressFraction();
+    }
+    setProgressFraction(total > 0 ? completed / total : 0);
 }

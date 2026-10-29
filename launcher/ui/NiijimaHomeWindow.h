@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include <QPixmap>
+#include <QHash>
 #include <QPointer>
 #include <QWidget>
 #include "tasks/Task.h"
@@ -31,6 +32,7 @@ class NiijimaHomeWindow : public QWidget {
     void startReleaseLookup(const QUrl& indexUrl, const QString& requestedId);
     void remember(const QString& id);
     void startImport(const QUrl& url);
+    void updateTransferText(const TaskStepProgress& progress);
     QPixmap m_frostedBackground;
     QLabel* m_status;
     QLabel* m_details;
@@ -42,4 +44,5 @@ class NiijimaHomeWindow : public QWidget {
     QPointer<Task> m_task;
     QPointer<InstanceTask> m_import;
     QString m_committedId;
+    QHash<QUuid, TaskStepProgress> m_transfers;
 };

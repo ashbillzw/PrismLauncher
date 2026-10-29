@@ -81,6 +81,15 @@ void Task::setProgress(qint64 current, qint64 total)
     }
 }
 
+void Task::setProgressFraction(double fraction)
+{
+    fraction = qBound(0.0, fraction, 1.0);
+    if (m_progressFraction != fraction) {
+        m_progressFraction = fraction;
+        emit progressFraction(fraction);
+    }
+}
+
 void Task::start()
 {
     switch (m_state) {
@@ -201,17 +210,20 @@ QString Task::failReason() const
     return m_failReason;
 }
 
-void Task::propagateFromOther(Task* other)
+void Task::propagateFromOther(Task* other, double progressStart)
 {
     Q_ASSERT(other);
     connect(other, &Task::status, this, &Task::setStatus);
     connect(other, &Task::details, this, &Task::setDetails);
     connect(other, &Task::progress, this, &Task::setProgress);
+    connect(other, &Task::progressFraction, this,
+            [this, progressStart](double fraction) { setProgressFraction(progressStart + (1 - progressStart) * fraction); });
     connect(other, &Task::stepProgress, this, &Task::propagateStepProgress);
 
     setStatus(other->getStatus());
     setDetails(other->getDetails());
     setProgress(other->getProgress(), other->getTotalProgress());
+    setProgressFraction(progressStart + (1 - progressStart) * other->getProgressFraction());
     for (const auto& progress : other->getStepProgress()) {
         propagateStepProgress(*progress);
     }

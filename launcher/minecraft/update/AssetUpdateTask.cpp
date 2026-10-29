@@ -41,6 +41,7 @@ void AssetUpdateTask::executeTask()
     connect(downloadJob.get(), &NetJob::failed, this, &AssetUpdateTask::assetIndexFailed);
     connect(downloadJob.get(), &NetJob::aborted, this, &AssetUpdateTask::emitAborted);
     connect(downloadJob.get(), &NetJob::progress, this, &AssetUpdateTask::progress);
+    connect(downloadJob.get(), &Task::progressFraction, this, [this](double fraction) { setProgressFraction(0.01 * fraction); });
     connect(downloadJob.get(), &NetJob::stepProgress, this, &AssetUpdateTask::propagateStepProgress);
 
     qDebug() << "Starting asset index download for" << m_inst->name();
@@ -84,6 +85,8 @@ void AssetUpdateTask::assetIndexFinished()
         connect(downloadJob.get(), &NetJob::failed, this, &AssetUpdateTask::assetsFailed);
         connect(downloadJob.get(), &NetJob::aborted, this, &AssetUpdateTask::emitAborted);
         connect(downloadJob.get(), &NetJob::progress, this, &AssetUpdateTask::progress);
+        connect(downloadJob.get(), &Task::progressFraction, this,
+                [this](double fraction) { setProgressFraction(0.01 + 0.99 * fraction); });
         connect(downloadJob.get(), &NetJob::stepProgress, this, &AssetUpdateTask::propagateStepProgress);
         downloadJob->start();
         return;

@@ -578,5 +578,5 @@ void ModrinthCreationTask::finishInstall()
             return;
         }
     }
-    downloadFiles(m_newInstance.get());
+    downloadFiles(m_newInstance.get(), true);
 }

@@ -5,6 +5,8 @@
 #include "Application.h"
 #include "minecraft/MinecraftInstance.h"
 #include "minecraft/MinecraftLoadAndCheck.h"
+#include "minecraft/update/AssetUpdateTask.h"
+#include "minecraft/update/LibrariesTask.h"
 #include "settings/SettingsObject.h"
 #include "tasks/SequentialTask.h"
 #include "ui/dialogs/CustomMessageBox.h"
@@ -133,7 +135,7 @@ void InstanceTask::scheduleToDelete(QWidget* parent, const QDir& dir, const QStr
     }
 }
 
-void InstanceTask::downloadFiles(MinecraftInstance* inst)
+void InstanceTask::downloadFiles(MinecraftInstance* inst, bool weightedProgress)
 {
     if (!APPLICATION->settings()->get("DownloadGameFilesDuringInstanceCreation").toBool()) {
         emitSucceeded();
@@ -149,9 +151,18 @@ void InstanceTask::downloadFiles(MinecraftInstance* inst)
         return;
     }
     auto task = makeShared<SequentialTask>();
-    task->addTask(makeShared<MinecraftLoadAndCheck>(inst, Net::Mode::Online));
+    task->addTask(makeShared<MinecraftLoadAndCheck>(inst, Net::Mode::Online), weightedProgress ? 0 : 1);
     for (const auto& t : updateTasks) {
-        task->addTask(t);
+        double weight = 1;
+        if (weightedProgress) {
+            weight = 0;
+            if (qobject_cast<LibrariesTask*>(t.get())) {
+                weight = 1;
+            } else if (qobject_cast<AssetUpdateTask*>(t.get())) {
+                weight = 2;
+            }
+        }
+        task->addTask(t, weight);
     }
     connect(task.get(), &Task::finished, this, [this, task] {
         if (!isRunning()) {

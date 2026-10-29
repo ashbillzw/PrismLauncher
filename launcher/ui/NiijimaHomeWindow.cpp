@@ -29,11 +29,16 @@
 #include "Application.h"
 #include "InstanceImportTask.h"
 #include "InstanceList.h"
+#include "MMCTime.h"
+#include "StringUtils.h"
 #include "minecraft/MinecraftInstance.h"
+#include "minecraft/auth/AccountList.h"
+#include "minecraft/auth/MinecraftAccount.h"
 #include "niijima/PackIndex.h"
 #include "settings/Setting.h"
 #include "settings/SettingsObject.h"
 #include "ui/MainWindow.h"
+#include "ui/dialogs/MSALoginDialog.h"
 
 namespace {
 constexpr int kTitleBarHeight = 46;
@@ -246,10 +251,10 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     m_packVersion = new QLabel(body);
     m_packVersion->setObjectName("packVersion");
     m_packVersion->setTextFormat(Qt::PlainText);
-    m_packVersion->setStyleSheet("font-size: 18px;");
-    m_packVersion->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_packVersion->setStyleSheet("font-size: 14px; color: #aaaaaa;");
+    m_packVersion->setAlignment(Qt::AlignRight | Qt::AlignBottom);
     m_packVersion->hide();
-    actions->addWidget(m_packVersion, 0, Qt::AlignVCenter);
+    actions->addWidget(m_packVersion, 0, Qt::AlignBottom);
     m_cancel = new QPushButton(QStringLiteral("取消"), body);
     m_cancel->hide();
     connect(m_cancel, &QPushButton::clicked, this, [this] {
@@ -406,7 +411,22 @@ void NiijimaHomeWindow::primaryAction()
     auto* settings = APPLICATION->settings();
     const auto id = settings->get("NiijimaPreferredInstance").toString();
     if (auto* inst = APPLICATION->instances()->getInstanceById(id)) {
-        APPLICATION->launch(inst);
+        MinecraftAccountPtr account;
+        if (inst->canLaunch()) {
+            auto* accounts = APPLICATION->accounts();
+            bool hasMicrosoftAccount = false;
+            for (int i = 0; i < accounts->count(); ++i)
+                hasMicrosoftAccount |= accounts->at(i)->accountType() == AccountType::MSA;
+            if (!hasMicrosoftAccount) {
+                account = MSALoginDialog::newAccount(this);
+                if (!account)
+                    return;
+                accounts->addAccount(account);
+                if (accounts->count() == 1)
+                    accounts->setDefaultAccount(account);
+            }
+        }
+        APPLICATION->launch(inst, LaunchMode::Normal, nullptr, account);
         return;
     }
     const auto& local = APPLICATION->localTest();
@@ -498,9 +518,11 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     m_primary->setEnabled(false);
     m_instances->hide();
     m_primary->setText(QStringLiteral("正在安装"));
+    m_transfers.clear();
     m_details->clear();
     m_details->hide();
-    m_progress->setRange(0, 0);
+    m_progress->setRange(0, 1000);
+    m_progress->setValue(url.isLocalFile() ? 600 : 0);
     m_progress->setFormat(QStringLiteral("%p%"));
     m_progress->show();
     m_cancel->setText(QStringLiteral("取消"));
@@ -510,46 +532,60 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     connect(task, &Task::abortStatusChanged, m_cancel, &QWidget::setEnabled);
     connect(task, &Task::abortButtonTextChanged, m_cancel, &QPushButton::setText);
     connect(task, &Task::status, this, [this](const QString& status) { m_status->setText(status.section('\n', 0, 0)); });
-    connect(task, &Task::progress, this, [this](qint64 cur, qint64 total) {
-        if (total <= 0) {
-            m_progress->setRange(0, 0);
-            return;
-        }
-        m_progress->setRange(0, 1000);
-        m_progress->setValue(int(1000.0 * cur / total));
+    connect(importer, &Task::progressFraction, this, [this](double fraction) {
+        m_progress->setValue(qMax(m_progress->value(), qMin(999, int(1000 * fraction))));
     });
-    connect(task, &Task::stepProgress, this, [this](const TaskStepProgress& p) {
-        if (p.state == TaskStepState::Running && !p.details.isEmpty()) {
-            auto detail = p.details;
-            detail.replace('\n', QStringLiteral(" · "));
-            // These values belong to the current file, not the whole installation.
-            m_details->setText(QStringLiteral("当前文件 · %1").arg(detail));
-            m_details->show();
-            m_progress->setFormat(p.details.contains('\n') ? p.details.section('\n', -1) : QStringLiteral("%p%"));
-        } else if (p.isDone()) {
-            m_progress->setFormat(QStringLiteral("%p%"));
-            m_details->clear();
-            m_details->hide();
-        }
+    connect(importer, &InstanceImportTask::extractingPack, this, [this] {
+        m_transfers.clear();
+        m_progress->setValue(600);
+        m_progress->setFormat(QStringLiteral("解压中 0/0"));
     });
+    connect(importer, &InstanceImportTask::extractionProgress, this, [this](qint64 current, qint64 total) {
+        m_progress->setFormat(QStringLiteral("解压中 %1/%2").arg(current).arg(total));
+    });
+    connect(importer, &InstanceImportTask::extractedPack, this, [this] { m_progress->setFormat(QStringLiteral("%p%")); });
+    connect(task, &Task::stepProgress, this, &NiijimaHomeWindow::updateTransferText);
     connect(task, &Task::finished, this, [this, task] {
         const bool success = task->wasSuccessful();
         const bool cancelled = task->getState() == Task::State::AbortedByUser;
         const auto reason = task->failReason();
+        if (success)
+            m_progress->setValue(1000);
+        m_transfers.clear();
         m_task = nullptr;
         m_import = nullptr;
         refresh();
-        if (success) {
-            m_status->setText(m_committedId.isEmpty() ? QStringLiteral("实例已导入，请进入 Prism 查看。")
-                                                      : QStringLiteral("实例已安装，启动时会检查并补齐运行文件。"));
-        } else {
+        if (!success) {
             m_status->setText(cancelled ? QStringLiteral("已取消安装") : QStringLiteral("安装失败，可重试。"));
             if (!cancelled)
                 QMessageBox::warning(this, QStringLiteral("安装失败"), reason);
+            m_status->show();
         }
-        m_status->show();
         task->deleteLater();
     });
     task->start();
     m_cancel->setEnabled(task->canAbort());
+}
+
+void NiijimaHomeWindow::updateTransferText(const TaskStepProgress& progress)
+{
+    if (progress.isDownload)
+        m_transfers.insert(progress.uid, progress);
+    else if (!progress.isDone() || !m_transfers.remove(progress.uid))
+        return;
+
+    if (m_transfers.isEmpty()) {
+        m_progress->setFormat(QStringLiteral("%p%"));
+        return;
+    }
+    double speed = 0;
+    double remaining = 0;
+    bool known = true;
+    for (const auto& transfer : m_transfers) {
+        speed += transfer.bytesPerSecond;
+        known &= transfer.total > 0;
+        remaining += qMax(qint64(0), transfer.total - transfer.current);
+    }
+    const auto eta = known && speed > 0 ? Time::humanReadableDuration(remaining / speed) : QStringLiteral("--");
+    m_progress->setFormat(QStringLiteral("%1/s · ETA %2").arg(StringUtils::humanReadableFileSize(speed), eta));
 }

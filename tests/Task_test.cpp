@@ -88,6 +88,75 @@ class TaskTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void test_WeightedDownloadStages()
+    {
+        auto metadata = makeShared<BasicTask_MultiStep>();
+        auto libraries = makeShared<BasicTask_MultiStep>();
+        auto assets = makeShared<BasicTask_MultiStep>();
+        SequentialTask downloads;
+        downloads.addTask(metadata, 0);
+        downloads.addTask(libraries, 1);
+        downloads.addTask(assets, 2);
+        BasicTask installer;
+        installer.propagateFromOther(&downloads, 0.7);
+        downloads.start();
+        QTRY_VERIFY(metadata->isRunning());
+        metadata->setProgressFraction(1);
+        QCOMPARE(installer.getProgressFraction(), 0.7);
+        metadata->emitSucceeded();
+        QTRY_VERIFY(libraries->isRunning());
+        libraries->setProgressFraction(0.25);
+        QCOMPARE(installer.getProgressFraction(), 0.725);
+        libraries->setProgressFraction(0.5);
+        QCOMPARE(installer.getProgressFraction(), 0.75);
+        libraries->setProgressFraction(0.75);
+        QCOMPARE(installer.getProgressFraction(), 0.775);
+        libraries->emitSucceeded();
+        QTRY_VERIFY(assets->isRunning());
+        QCOMPARE(installer.getProgressFraction(), 0.8);
+        assets->setProgressFraction(0.5);
+        QCOMPARE(installer.getProgressFraction(), 0.9);
+        assets->emitSucceeded();
+        QTRY_VERIFY(downloads.wasSuccessful());
+        QCOMPARE(installer.getProgressFraction(), 1.0);
+    }
+
+    void test_FractionalSequentialProgress()
+    {
+        auto first = makeShared<BasicTask_MultiStep>();
+        auto second = makeShared<BasicTask_MultiStep>();
+        SequentialTask sequence;
+        sequence.addTask(first);
+        sequence.addTask(second);
+        sequence.start();
+        QTRY_VERIFY(first->isRunning());
+        first->setProgressFraction(0.5);
+        QCOMPARE(sequence.getProgressFraction(), 0.25);
+        first->emitSucceeded();
+        QTRY_VERIFY(second->isRunning());
+        QCOMPARE(sequence.getProgressFraction(), 0.5);
+        second->setProgressFraction(0.5);
+        QCOMPARE(sequence.getProgressFraction(), 0.75);
+        second->emitSucceeded();
+        QTRY_VERIFY(sequence.wasSuccessful());
+        QCOMPARE(sequence.getProgressFraction(), 1.0);
+    }
+
+    void test_FractionalProgressMapping()
+    {
+        BasicTask_MultiStep source;
+        BasicTask wrapper;
+        wrapper.propagateFromOther(&source, 0.5);
+        QCOMPARE(wrapper.getProgressFraction(), 0.5);
+        source.setProgress(1, 4);
+        source.setProgressFraction(0.25);
+        QCOMPARE(wrapper.getProgressFraction(), 0.625);
+        QCOMPARE(wrapper.getProgress(), 1);
+        QCOMPARE(wrapper.getTotalProgress(), 4);
+        source.setProgressFraction(1);
+        QCOMPARE(wrapper.getProgressFraction(), 1.0);
+    }
+
     void test_SetStatus_NoMultiStep()
     {
         BasicTask t;

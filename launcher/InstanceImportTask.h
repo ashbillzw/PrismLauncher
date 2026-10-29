@@ -47,6 +47,11 @@ class InstanceImportTask : public InstanceTask {
     ~InstanceImportTask() override = default;
     bool abort() override;
 
+   signals:
+    void extractingPack();
+    void extractionProgress(qint64 current, qint64 total);
+    void extractedPack();
+
    protected:
     //! Entry point for tasks.
     void executeTask() override;

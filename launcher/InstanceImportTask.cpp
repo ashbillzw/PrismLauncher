@@ -105,6 +105,7 @@ void InstanceImportTask::downloadFromUrl()
 
     connect(filesNetJob.get(), &NetJob::succeeded, this, &InstanceImportTask::processZipPack);
     connect(filesNetJob.get(), &NetJob::progress, this, &InstanceImportTask::setProgress);
+    connect(filesNetJob.get(), &Task::progressFraction, this, [this](double fraction) { setProgressFraction(0.6 * fraction); });
     connect(filesNetJob.get(), &NetJob::stepProgress, this, &InstanceImportTask::propagateStepProgress);
     connect(filesNetJob.get(), &NetJob::failed, this, &InstanceImportTask::emitFailed);
     connect(filesNetJob.get(), &NetJob::aborted, this, &InstanceImportTask::emitAborted);
@@ -128,6 +129,8 @@ QString cleanPath(const QString& path)
 
 void InstanceImportTask::processZipPack()
 {
+    setProgressFraction(0.6);
+    emit extractingPack();
     setStatus(tr("Attempting to determine instance type"));
     QDir extractDir(m_stagingPath);
     qDebug() << "Attempting to create instance from" << m_archivePath;
@@ -199,6 +202,9 @@ void InstanceImportTask::processZipPack()
     connect(zipTask.get(), &Task::stepProgress, this, &InstanceImportTask::propagateStepProgress);
 
     connect(zipTask.get(), &Task::progress, this, [this, progressStep](qint64 current, qint64 total) {
+        if (total > 0)
+            setProgressFraction(0.6 + 0.1 * double(current) / total);
+        emit extractionProgress(current, total);
         progressStep->update(current, total);
         stepProgress(*progressStep);
     });
@@ -213,6 +219,8 @@ void InstanceImportTask::processZipPack()
 
 void InstanceImportTask::extractFinished()
 {
+    setProgressFraction(0.7);
+    emit extractedPack();
     setAbortable(false);
 
     qDebug() << "Fixing permissions for extracted pack files...";
@@ -432,6 +440,8 @@ void InstanceImportTask::processModrinth()
     });
     connect(instCreationTask.get(), &Task::failed, this, &InstanceImportTask::emitFailed);
     connect(instCreationTask.get(), &Task::progress, this, &InstanceImportTask::setProgress);
+    connect(instCreationTask.get(), &Task::progressFraction, this,
+            [this](double fraction) { setProgressFraction(0.7 + 0.3 * fraction); });
     connect(instCreationTask.get(), &Task::stepProgress, this, &InstanceImportTask::propagateStepProgress);
     connect(instCreationTask.get(), &Task::status, this, &InstanceImportTask::setStatus);
     connect(instCreationTask.get(), &Task::details, this, &InstanceImportTask::setDetails);

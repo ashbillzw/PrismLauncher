@@ -59,6 +59,8 @@ struct TaskStepProgress {
     QString status = "";
     QString details = "";
     TaskStepState state = TaskStepState::Waiting;
+    bool isDownload = false;
+    double bytesPerSecond = 0;
 
     TaskStepProgress() { this->uid = QUuid::createUuid(); }
     TaskStepProgress(QUuid uid_) : uid(uid_) {}
@@ -123,12 +125,13 @@ class Task : public QObject, public QRunnable {
 
     qint64 getProgress() { return m_progress; }
     qint64 getTotalProgress() { return m_progressTotal; }
+    double getProgressFraction() const { return m_progressFraction; }
     virtual auto getStepProgress() const -> TaskStepProgressList { return {}; }
 
     QUuid getUid() { return m_uid; }
 
     // Copies the other task's status, details, progress, and step progress to this task; and sets up connections for future propagation
-    void propagateFromOther(Task* other);
+    void propagateFromOther(Task* other, double progressStart = 0);
 
    protected:
     void logWarning(const QString& line);
@@ -139,6 +142,7 @@ class Task : public QObject, public QRunnable {
    signals:
     void started();
     void progress(qint64 current, qint64 total);
+    void progressFraction(double fraction);
     //! called when a task has either succeeded, aborted or failed.
     void finished();
     //! called when a task has succeeded
@@ -201,6 +205,7 @@ class Task : public QObject, public QRunnable {
     void setStatus(const QString& status);
     void setDetails(const QString& details);
     void setProgress(qint64 current, qint64 total);
+    void setProgressFraction(double fraction);
 
    protected:
     State m_state = State::Inactive;
@@ -210,6 +215,7 @@ class Task : public QObject, public QRunnable {
     QString m_details;
     int m_progress = 0;
     int m_progressTotal = 100;
+    double m_progressFraction = 0;
 
     // TODO: Nuke in favor of QLoggingCategory
     bool m_show_debug = true;

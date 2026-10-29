@@ -214,6 +214,13 @@ void Request::onProgress(qint64 bytesReceived, qint64 bytesTotal)
     setDetails(dlProgress + "\n" + dlSpeedStr);
 
     setProgress(bytesReceived, bytesTotal);
+    if (bytesTotal > 0)
+        setProgressFraction(double(bytesReceived) / bytesTotal);
+    TaskStepProgress transfer(getUid());
+    transfer.update(bytesReceived, bytesTotal);
+    transfer.isDownload = true;
+    transfer.bytesPerSecond = elapsedMs.count() > 0 ? qMax(0.0, dlSpeedBps) : 0;
+    emit stepProgress(transfer);
 }
 
 void Request::downloadError(QNetworkReply::NetworkError error)

@@ -72,6 +72,7 @@ void LegacyFMLLibrariesTask::executeTask()
     connect(dljob.get(), &NetJob::failed, this, &LegacyFMLLibrariesTask::fmllibsFailed);
     connect(dljob.get(), &NetJob::aborted, this, &LegacyFMLLibrariesTask::emitAborted);
     connect(dljob.get(), &NetJob::progress, this, &LegacyFMLLibrariesTask::progress);
+    connect(dljob.get(), &Task::progressFraction, this, &Task::setProgressFraction);
     connect(dljob.get(), &NetJob::stepProgress, this, &LegacyFMLLibrariesTask::propagateStepProgress);
     downloadJob.reset(dljob);
     downloadJob->start();

@@ -49,6 +49,7 @@ void SequentialTask::subTaskFailed(Task::Ptr task, const QString& msg)
 
 void SequentialTask::updateState()
 {
+    updateProgressFraction();
     setProgress(m_done.count(), totalSize());
     setStatus(tr("Executing task %1 out of %2").arg(QString::number(m_doing.count() + m_done.count()), QString::number(totalSize())));
 }

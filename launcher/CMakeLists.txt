@@ -49,6 +49,8 @@ set(CORE_SOURCES
     # Niijima pack release index
     niijima/PackIndex.h
     niijima/PackIndex.cpp
+    niijima/LocalTest.h
+    niijima/LocalTest.cpp
 
     # Resource downloading task
     ResourceDownloadTask.h

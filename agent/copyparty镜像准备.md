@@ -1,5 +1,19 @@
 # copyparty 镜像准备
 
+## 2026-10-30 状态更新：正式下载地址统一到 ashbill
+
+用户要求：启动器默认入口与服务器镜像元数据中的下载地址统一使用 ashbill 域名。以后生成、更新或重新部署镜像时，也必须按以下根地址定稿，不能重新上传带 yake 绝对地址的旧元数据。
+
+- 发布根：`https://mc1.ashbill.com:25572/synology-root/minecraft/niijima-launcher/`。
+- 镜像根：发布根加 `niijima-mirror/`；元数据入口加 `meta/v1/`，资源入口加 `assets/`。
+- `modrinth.index.json` 是整合包的 Mod 清单；本节的 7 个 JSON 是 Prism 的 Minecraft／Forge／LWJGL 基础资源元数据，两套清单不能混淆。只改启动器入口不会自动改写元数据里的绝对下载 URL。
+- 已获用户批准，通过自研共享终端在 `custom-sz-cn` 更新 `/synology/MCShare/minecraft/niijima-launcher/niijima-mirror/meta/v1/`：3 个版本 JSON 共 174 处 URL 改址，并重算 3 个组件索引及根索引的 SHA-256，共替换 7 个文件。
+- 执行前核对全部旧文件哈希，完整备份至 `/home/ashbill/niijima-mirror-meta-backup-20261030/`；执行后核对全部新文件哈希。备份保留原地址，属于回退资料，不参与线上下载。
+- 北京时间 2026-10-30 01:39，实际 HTTP 获取 7 个 JSON 均成功且匹配预期哈希；版本→组件→根索引链有效，174 个下载 URL 全部指向上述 ashbill 镜像根，无 yake 残留。
+- 使用既有 nginx `/synology-root` 静态映射，未修改 nginx、重启服务或改动游戏资源。没有扫描或替换其他无关服务的域名配置。正式 `packs/latest.json` 上传状态另见整合包版本索引记录；本次不代表完成真实游戏安装。
+
+**历史范围说明：** 下方 2026-10-29 归档中的 yake 地址已过时；单归档部署方式和游戏版本范围仍可参考，但旧归档不能原样覆盖本次元数据。后续发布应使用新根地址并重新核对元数据哈希链。
+
 ## 2026-10-29 最终交付：一个包上传后原地解压（唯一当前方案）
 
 用户明确要求：只上传一个 `.tar.gz` 到现有 copyparty 的固定父目录，再在原地解压；**不增加目录搬动、元数据补丁、服务器脚本或软件安装步骤**。下文早期 `publish/` 根、补丁和服务器定稿流程仅保留历史，均不再用于本次部署。

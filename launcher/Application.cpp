@@ -661,8 +661,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting(
             "NiijimaPackIndexUrl",
             BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher")
-                ? QStringLiteral("https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/"
-                                 "minecraft/niijima-launcher/packs/latest.json")
+                ? Niijima::distributionRoot() + QStringLiteral("packs/latest.json")
                 : QString());
         m_settings->registerSetting("NiijimaPackVersionId", QString());
         m_settings->registerSetting("NiijimaInstanceIds", QStringList());
@@ -903,9 +902,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
             // Niijima's static mirror matches the archive's top-level directory after extraction.
             // Registration defaults preserve saved custom URLs and explicitly empty (upstream) values.
             const bool niijima = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher");
-            const QString mirrorRoot = QStringLiteral(
-                "https://files.yake.wang:25572/%E5%88%9B%E4%B8%96%E7%BA%AA%E7%BD%91%E7%9B%98/"
-                "minecraft/niijima-launcher/niijima-mirror/");
+            const QString mirrorRoot = Niijima::distributionRoot() + QStringLiteral("niijima-mirror/");
 
             // Meta URL
             resetIfInvalid(m_settings->registerSetting("MetaURLOverride", niijima ? mirrorRoot + "meta/v1/" : QString()).get());
@@ -975,7 +972,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     // initialize network access and proxy setup
     {
-        m_network.reset(new QNetworkAccessManager());
+        if (BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher"))
+            m_localTest = Niijima::LocalTest::load(applicationDirPath() + QStringLiteral("/niijima-local-test.json"));
+        m_network.reset(new Niijima::LocalTestNetwork(m_localTest));
         QString proxyTypeStr = settings()->get("ProxyType").toString();
         QString addr = settings()->get("ProxyAddr").toString();
         int port = settings()->get("ProxyPort").value<qint16>();

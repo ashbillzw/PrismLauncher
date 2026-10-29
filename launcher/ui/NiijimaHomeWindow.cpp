@@ -409,6 +409,14 @@ void NiijimaHomeWindow::primaryAction()
         APPLICATION->launch(inst);
         return;
     }
+    const auto& local = APPLICATION->localTest();
+    if (local.enabled) {
+        if (!local.error.isEmpty())
+            showDownloadError(QStringLiteral("本地测试配置无效"), local.error);
+        else
+            startImport(QUrl::fromLocalFile(local.pack));
+        return;
+    }
     const auto validDownloadUrl = [](const QUrl& url) {
         const bool local = url.host() == "localhost" || url.host() == "127.0.0.1" || url.host() == "::1";
         return url.isValid() && !url.host().isEmpty() && (url.scheme() == "https" || (local && url.scheme() == "http")) &&

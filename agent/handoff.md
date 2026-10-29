@@ -1,5 +1,17 @@
 # PrismLauncher 交接
 
+## 2026-10-30 C 盘本机构建与本地安装入口
+
+- 本机仓库 `C:/mydata/Repositories/PrismLauncher`，`develop`；基线 `042e2a537`。新增程序旁的可选 `niijima-local-test.json`，指定本地 pack 与镜像；无配置保持正式流程。本轮源码未提交，EXE 显示的基线 Git hash 不包含未提交改动的信息。
+- 已安装 VS 2022 Build Tools 17.14.43／MSVC 14.44、Windows SDK 26100、Qt 6.11.2 及仓库依赖。Release 编译及运行目录收集成功；`install-niijima/niijima-launcher.exe` 为 41,553,408 字节，`--version` 退出 0。未制作本轮 NSIS 安装器。
+- CTest 排除已知 FileSystem 弹窗问题后 **24/24 通过**。首轮新增测试错误调用依赖 Application 单例的 Net::Request，在无该单例的测试进程中崩溃；改为实际 Qt 请求与 FileSink/ChecksumValidator 组合后通过。验证本地读取、错误哈希拒绝、本地缺文件失败。未运行 GUI、完整安装或游戏。
+- 镜像已一次下载并解压到独立工作目录 `prism-local-test/mirror/niijima-mirror/`。本地 7 个 JSON 的 174 个资源 URL 已改为 ashbill 地址，三层 SHA-256 链核对通过，游戏资源未改。
+- 程序旁已放测试配置，使用整合包 `build/pack-test.zip`（`1.6.test0001`）。启动入口为 `C:/mydata/Agents/Codex-CreateTrainResync/prism-local-test/启动本地测试.cmd`，使用同目录独立 `profile/`，不复用 PCL 实例。**正式发行前删除程序旁的测试 JSON。** 详见[本地安装测试](本地安装测试.md)。
+- 自研共享终端运行副本在独立工作目录 `shared-terminal/`，已连接 `custom-sz-cn`；令牌不入库。只读确认 nginx 现有 `mc1.ashbill.com:25572/synology-root/` 映射，无需改 nginx。正式默认根已改为 `https://mc1.ashbill.com:25572/synology-root/minecraft/niijima-launcher/`。
+- **远端状态：** 镜像根索引 HTTP 200；`packs/latest.json` HTTP 404，正式在线安装尚未部署。本轮服务器元数据替换已准备脚本并发出审批选项，尚未获得该项批准、未执行；远端元数据仍含 yake 地址。本地测试镜像已改址，不依赖该远端操作。
+- **上述元数据待批准状态已过时（2026-10-30 01:39 更新）：** 用户已明确批准。共享终端已完成服务器 7 个 JSON 的备份、174 个 URL 改址及哈希链更新；线上 HTTP 逐文件核对全部通过，无 yake 下载地址残留。备份为 `/home/ashbill/niijima-mirror-meta-backup-20261030/`。未改 nginx 或游戏资源，正式包索引仍未由本轮上传。后续镜像发布也采用 ashbill 根，详见[镜像维护记录](copyparty镜像准备.md)顶部。
+- 本机日志、首轮失败及最终通过记录在独立目录 `prism-build/`；计时记录在 `日志/任务耗时/20261030-prism-local-build.md`。SDK、下载缓存与测试数据保留复用。未 push。
+
 ## 当前迭代约定（2026-10-29 用户明确要求）
 
 当前版本已按用户明确要求构建：顶栏/标题组/按钮微调、统一blur18无遮罩、内置 Zen Maru Gothic Regular、移除地址弹窗、packs/latest.json 数字 ID 版本选择，均已进入 EXE/安装器。CTest 23/23 与独立 offscreen 视觉检查通过；实际索引部署和游戏安装仍待验证，详见末节。后续修改仍需用户明确要求才构建。

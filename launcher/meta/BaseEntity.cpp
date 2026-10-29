@@ -57,6 +57,8 @@ namespace Meta {
 
 QUrl BaseEntity::url() const
 {
+    if (APPLICATION->localTest().enabled && APPLICATION->localTest().error.isEmpty())
+        return QUrl(Niijima::distributionRoot() + QStringLiteral("niijima-mirror/meta/v1/")).resolved(localFilename());
     auto* s = APPLICATION->settings();
     QString metaOverride = s->get("MetaURLOverride").toString();
     if (metaOverride.isEmpty()) {

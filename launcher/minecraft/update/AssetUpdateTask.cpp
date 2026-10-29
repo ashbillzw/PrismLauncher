@@ -114,6 +114,8 @@ bool AssetUpdateTask::abort()
 
 QString AssetUpdateTask::resourceUrl()
 {
+    if (APPLICATION->localTest().enabled && APPLICATION->localTest().error.isEmpty())
+        return Niijima::distributionRoot() + QStringLiteral("niijima-mirror/assets/");
     if (const QString urlOverride = APPLICATION->settings()->get("ResourceURLOverride").toString(); !urlOverride.isEmpty()) {
         return urlOverride;
     }

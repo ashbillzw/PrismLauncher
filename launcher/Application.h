@@ -48,6 +48,7 @@
 #include <QUrl>
 
 #include "QObjectPtr.h"
+#include "niijima/LocalTest.h"
 
 #include "minecraft/auth/MinecraftAccount.h"
 
@@ -146,6 +147,7 @@ class Application : public QApplication {
     void updateProxySettings(const QString& proxyTypeStr, const QString& addr, int port, const QString& user, const QString& password);
 
     QNetworkAccessManager* network();
+    const Niijima::LocalTest& localTest() const { return m_localTest; }
 
     HttpMetaCache* metacache();
 
@@ -245,6 +247,7 @@ class Application : public QApplication {
 
    private:
     std::unique_ptr<QNetworkAccessManager> m_network;
+    Niijima::LocalTest m_localTest;
 
     std::unique_ptr<ExternalUpdater> m_updater;
     std::unique_ptr<AccountList> m_accounts;

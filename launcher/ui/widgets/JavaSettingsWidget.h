@@ -38,6 +38,7 @@
 
 #include <QWidget>
 #include "JavaCommon.h"
+#include "niijima/MemoryPolicy.h"
 
 class MinecraftInstance;
 
@@ -63,6 +64,9 @@ class JavaSettingsWidget : public QWidget {
     void updateThresholds();
 
    private:
+    Niijima::HeapMemory selectedMemory() const;
+    Niijima::HeapMemory m_manualMemory{512, 4096};
+    bool m_showingAutomaticMemory = false;
     MinecraftInstance* m_instance;
     Ui::JavaSettingsWidget* m_ui;
     unique_qobject_ptr<JavaCommon::TestCheck> m_checker;

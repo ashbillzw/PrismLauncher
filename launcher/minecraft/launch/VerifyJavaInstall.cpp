@@ -52,7 +52,7 @@ void VerifyJavaInstall::executeTask()
     auto storedVersion = settings->get("JavaVersion").toString();
     auto ignoreCompatibility = settings->get("IgnoreJavaCompatibility").toBool();
     auto javaArchitecture = settings->get("JavaArchitecture").toString();
-    auto maxMemAlloc = settings->get("MaxMemAlloc").toInt();
+    const auto maxMemAlloc = instance->heapMemory().maximumMiB;
 
     if (javaArchitecture == "32" && maxMemAlloc > 2048) {
         emit logLine(tr("Max memory allocation exceeds the supported value.\n"

@@ -40,6 +40,7 @@
 #include <QDir>
 #include <QProcess>
 #include "BaseInstance.h"
+#include "niijima/MemoryPolicy.h"
 #include "minecraft/launch/MinecraftTarget.h"
 #include "minecraft/mod/Mod.h"
 
@@ -127,6 +128,7 @@ class MinecraftInstance : public BaseInstance {
     QString createLaunchScript(AuthSessionPtr session, MinecraftTarget::Ptr targetToJoin);
     /// get arguments passed to java
     QStringList javaArguments();
+    Niijima::HeapMemory heapMemory();
     QString getLauncher();
     bool shouldApplyOnlineFixes();
 

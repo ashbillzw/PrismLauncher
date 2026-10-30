@@ -40,6 +40,8 @@
 #include <QString>
 
 #include "HardwareInfo.h"
+#include "BuildConfig.h"
+#include "niijima/MemoryPolicy.h"
 
 #ifdef Q_OS_MACOS
 #include <sys/sysctl.h>
@@ -87,6 +89,10 @@ QString useQTForArch()
 
 int defaultMaxJvmMem()
 {
+    if (BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher")) {
+        const auto installedMiB = HardwareInfo::installedRamMiB();
+        return Niijima::defaultMaxMemoryMiB(installedMiB ? installedMiB : HardwareInfo::totalRamMiB());
+    }
     // If totalRAM < 6GB, use (totalRAM / 1.5), else 4GB
     if (const uint64_t totalRAM = HardwareInfo::totalRamMiB(); totalRAM < (4096 * 1.5))
         return totalRAM / 1.5;

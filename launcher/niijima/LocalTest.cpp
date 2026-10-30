@@ -27,6 +27,7 @@ LocalTest LocalTest::load(const QString& filename)
     }
     const auto document = QJsonDocument::fromJson(file.readAll());
     const auto object = document.object();
+    config.testWarning = object.contains("testWarning");
     const QDir directory = QFileInfo(filename).absoluteDir();
     config.pack = directory.absoluteFilePath(object.value("pack").toString());
     config.mirror = directory.absoluteFilePath(object.value("mirror").toString());

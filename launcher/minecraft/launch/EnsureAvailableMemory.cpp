@@ -75,9 +75,7 @@ void EnsureAvailableMemory::executeTask()
         return;
     }
 
-    const uint64_t settingMin = m_instance->settings()->get("MinMemAlloc").toUInt();
-    const uint64_t settingMax = m_instance->settings()->get("MaxMemAlloc").toUInt();
-    const uint64_t max = std::max(settingMin, settingMax);
+    const uint64_t max = m_instance->heapMemory().maximumMiB;
 
     if (static_cast<double>(max) * 0.7 > static_cast<double>(available)) {
         bool shouldAbort = false;

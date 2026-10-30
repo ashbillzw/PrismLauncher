@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include <utility>
 #include <QFile>
 #include <QDir>
 #include <QJsonDocument>
@@ -9,6 +10,7 @@
 #include <QNetworkRequest>
 
 #include "niijima/LocalTest.h"
+#include "niijima/MemoryPolicy.h"
 #include "net/ChecksumValidator.h"
 #include "net/FileSink.h"
 
@@ -16,6 +18,62 @@ class NiijimaLocalTestTest : public QObject {
     Q_OBJECT
 
 private slots:
+    void memoryPolicy()
+    {
+        using Niijima::defaultMaxMemoryMiB;
+        QCOMPARE(defaultMaxMemoryMiB(0), 4096);
+        for (const auto [ram, heap] : {std::pair{3, 2}, {6, 4}, {11, 8}, {16, 12}, {24, 18},
+                                       {32, 24}, {48, 28}, {64, 32}, {96, 40}, {128, 48}, {256, 48}})
+            QCOMPARE(defaultMaxMemoryMiB(ram * 1024), heap * 1024);
+        int previous = 0;
+        for (uint64_t ram = 1024; ram <= 256 * 1024; ++ram) {
+            const auto heap = defaultMaxMemoryMiB(ram);
+            QVERIFY(heap >= previous);
+            QVERIFY(heap <= 48 * 1024);
+            QVERIFY(static_cast<uint64_t>(heap) <= ram);
+            previous = heap;
+        }
+        QVERIFY(!Niijima::isLowMemory(16 * 1024, 14 * 1024));
+        QVERIFY(Niijima::isLowMemory(12 * 1024, 12 * 1024));
+        QVERIFY(Niijima::isLowMemory(16 * 1024 - 1, 15 * 1024));
+        QVERIFY(!Niijima::isLowMemory(0, 15 * 1024));
+        QVERIFY(Niijima::isLowMemory(0, 15 * 1024 - 1));
+        QVERIFY(!Niijima::isLowMemory(0, 0));
+    }
+
+    void automaticAndManualMemory()
+    {
+        // An old persisted 4 GiB limit must not defeat the default automatic mode.
+        for (const auto [ram, heap] : {std::pair{16, 12}, {64, 32}, {128, 48}, {256, 48}}) {
+            const auto automatic = Niijima::heapMemory(true, Niijima::defaultMaxMemoryMiB(ram * 1024), 2048, 4096);
+            QCOMPARE(automatic.minimumMiB, 512);
+            QCOMPARE(automatic.maximumMiB, heap * 1024);
+            const auto manual = Niijima::heapMemory(false, Niijima::defaultMaxMemoryMiB(ram * 1024), 2048, 4096);
+            QCOMPARE(manual.minimumMiB, 2048);
+            QCOMPARE(manual.maximumMiB, 4096);
+        }
+        const auto reversedManual = Niijima::heapMemory(false, 32768, 8192, 1024);
+        QCOMPARE(reversedManual.minimumMiB, 1024);
+        QCOMPARE(reversedManual.maximumMiB, 8192);
+        const auto unknown = Niijima::heapMemory(true, Niijima::defaultMaxMemoryMiB(0), 8192, 16384);
+        QCOMPARE(unknown.minimumMiB, 512);
+        QCOMPARE(unknown.maximumMiB, 4096);
+    }
+
+    void warningKeyPresence()
+    {
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("config.json");
+        for (const auto& json : {QByteArray("{}"), QByteArray("{\"testWarning\":true}"),
+                                 QByteArray("{\"testWarning\":false}"), QByteArray("{\"testWarning\":null}")}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(json);
+            file.close();
+            QCOMPARE(Niijima::LocalTest::load(path).testWarning, json.contains("testWarning"));
+        }
+    }
+
     void missingAndInvalidConfig()
     {
         QTemporaryDir temporary;

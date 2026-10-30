@@ -294,6 +294,7 @@ class Application : public QApplication {
     // main window, if any
     MainWindow* m_mainWindow = nullptr;
     NiijimaHomeWindow* m_niijimaHome = nullptr;
+    bool m_niijimaStartupWarningChecked = false;
 
     // log window, if any
     ViewLogWindow* m_viewLogWindow = nullptr;

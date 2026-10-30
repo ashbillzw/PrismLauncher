@@ -51,6 +51,8 @@
 #include "ui/InstanceWindow.h"
 #include "ui/MainWindow.h"
 #include "ui/NiijimaHomeWindow.h"
+#include "HardwareInfo.h"
+#include "niijima/MemoryPolicy.h"
 #include "ui/ToolTipFilter.h"
 #include "ui/ViewLogWindow.h"
 
@@ -763,6 +765,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting({ "ProxyPass", "ProxyPassword" }, "");
 
         // Memory
+        m_settings->registerSetting("AutomaticMemory", BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher"));
         m_settings->registerSetting({ "MinMemAlloc", "MinMemoryAlloc" }, 512);
         m_settings->registerSetting({ "MaxMemAlloc", "MaxMemoryAlloc" }, SysInfo::defaultMaxJvmMem());
         m_settings->registerSetting("PermGen", 128);
@@ -1799,6 +1802,18 @@ void Application::showNiijimaHome()
     m_niijimaHome->show();
     m_niijimaHome->raise();
     m_niijimaHome->activateWindow();
+    if (!m_niijimaStartupWarningChecked) {
+        m_niijimaStartupWarningChecked = true;
+        const bool lowMemory = Niijima::isLowMemory(HardwareInfo::installedRamMiB(), HardwareInfo::totalRamMiB());
+        if (lowMemory || m_localTest.testWarning) {
+            auto* warning = CustomMessageBox::selectable(
+                m_niijimaHome, tr("Warning"),
+                QStringLiteral("当前电脑内存较低（小于16GB），游戏可能不能正确运行。"),
+                QMessageBox::Warning, QMessageBox::Ok, QMessageBox::Ok);
+            warning->setAttribute(Qt::WA_DeleteOnClose);
+            warning->open();
+        }
+    }
 }
 
 MainWindow* Application::showMainWindow(bool minimized)

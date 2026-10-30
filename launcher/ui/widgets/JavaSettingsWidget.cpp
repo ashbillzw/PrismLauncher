@@ -39,10 +39,12 @@
 
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QSignalBlocker>
 #include "Application.h"
 #include "BuildConfig.h"
 #include "FileSystem.h"
 #include "HardwareInfo.h"
+#include "SysInfo.h"
 #include "JavaCommon.h"
 #include "java/JavaInstallList.h"
 #include "java/JavaUtils.h"
@@ -106,8 +108,10 @@ JavaSettingsWidget::JavaSettingsWidget(MinecraftInstance* instance, QWidget* par
     connect(m_ui->maxMemSpinBox, &QSpinBox::valueChanged, this, &JavaSettingsWidget::updateThresholds);
     connect(m_ui->minMemSpinBox, &QSpinBox::valueChanged, this, &JavaSettingsWidget::updateThresholds);
 
+    m_ui->automaticMemoryCheckBox->setVisible(BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher"));
+    connect(m_ui->automaticMemoryCheckBox, &QCheckBox::toggled, this, &JavaSettingsWidget::updateThresholds);
+    connect(m_ui->memoryGroupBox, &QGroupBox::toggled, this, &JavaSettingsWidget::updateThresholds);
     loadSettings();
-    updateThresholds();
 }
 
 JavaSettingsWidget::~JavaSettingsWidget()
@@ -117,6 +121,11 @@ JavaSettingsWidget::~JavaSettingsWidget()
 
 void JavaSettingsWidget::loadSettings()
 {
+    const QSignalBlocker automaticBlocker(m_ui->automaticMemoryCheckBox);
+    const QSignalBlocker groupBlocker(m_ui->memoryGroupBox);
+    const QSignalBlocker minimumBlocker(m_ui->minMemSpinBox);
+    const QSignalBlocker maximumBlocker(m_ui->maxMemSpinBox);
+    m_showingAutomaticMemory = false;
     SettingsObject* settings = nullptr;
 
     if (m_instance != nullptr) {
@@ -142,6 +151,7 @@ void JavaSettingsWidget::loadSettings()
     }
 
     // Memory
+    m_ui->automaticMemoryCheckBox->setChecked(settings->get("AutomaticMemory").toBool());
     m_ui->memoryGroupBox->setChecked(m_instance == nullptr || settings->get("OverrideMemory").toBool());
     int min = settings->get("MinMemAlloc").toInt();
     int max = settings->get("MaxMemAlloc").toInt();
@@ -158,6 +168,7 @@ void JavaSettingsWidget::loadSettings()
     // Java arguments
     m_ui->javaArgumentsGroupBox->setChecked(m_instance == nullptr || settings->get("OverrideJavaArgs").toBool());
     m_ui->jvmArgsTextBox->setPlainText(settings->get("JvmArgs").toString());
+    updateThresholds();
 }
 
 void JavaSettingsWidget::saveSettings()
@@ -199,18 +210,18 @@ void JavaSettingsWidget::saveSettings()
     }
 
     if (memory) {
-        int min = m_ui->minMemSpinBox->value();
-        int max = m_ui->maxMemSpinBox->value();
-        if (min < max) {
-            settings->set("MinMemAlloc", min);
-            settings->set("MaxMemAlloc", max);
-        } else {
-            settings->set("MinMemAlloc", max);
-            settings->set("MaxMemAlloc", min);
+        const bool automatic = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher") &&
+                               m_ui->automaticMemoryCheckBox->isChecked();
+        settings->set("AutomaticMemory", automatic);
+        if (!automatic) {
+            const auto selected = selectedMemory();
+            settings->set("MinMemAlloc", selected.minimumMiB);
+            settings->set("MaxMemAlloc", selected.maximumMiB);
         }
         settings->set("PermGen", m_ui->permGenSpinBox->value());
         settings->set("LowMemWarning", m_ui->lowMemWarningCheckBox->isChecked());
     } else {
+        settings->reset("AutomaticMemory");
         settings->reset("MinMemAlloc");
         settings->reset("MaxMemAlloc");
         settings->reset("PermGen");
@@ -262,8 +273,9 @@ void JavaSettingsWidget::onJavaTest()
         jvmArgs = APPLICATION->settings()->get("JvmArgs").toString();
     }
 
-    m_checker.reset(new JavaCommon::TestCheck(this, m_ui->javaPathTextBox->text(), jvmArgs, m_ui->minMemSpinBox->value(),
-                                              m_ui->maxMemSpinBox->value(), m_ui->permGenSpinBox->value()));
+    const auto memory = selectedMemory();
+    m_checker.reset(new JavaCommon::TestCheck(this, m_ui->javaPathTextBox->text(), jvmArgs, memory.minimumMiB,
+                                              memory.maximumMiB, m_ui->permGenSpinBox->value()));
     connect(m_checker.get(), &JavaCommon::TestCheck::finished, this, [this] { m_checker.reset(); });
     m_checker->run();
 }
@@ -283,7 +295,7 @@ void JavaSettingsWidget::onJavaAutodetect()
         JavaInstallPtr java = std::dynamic_pointer_cast<JavaInstall>(versionDialog.selectedVersion());
         m_ui->javaPathTextBox->setText(java->path);
 
-        if (!java->is_64bit && m_ui->maxMemSpinBox->value() > 2048) {
+        if (!java->is_64bit && selectedMemory().maximumMiB > 2048) {
             CustomMessageBox::selectable(this, tr("Confirm Selection"),
                                          tr("You selected a 32-bit version of Java.\n"
                                             "This installation does not support more than 2048MiB of RAM.\n"
@@ -293,11 +305,46 @@ void JavaSettingsWidget::onJavaAutodetect()
         }
     }
 }
+Niijima::HeapMemory JavaSettingsWidget::selectedMemory() const
+{
+    if (m_instance && !m_ui->memoryGroupBox->isChecked())
+        return m_instance->heapMemory();
+    const bool automatic = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher") &&
+                           m_ui->automaticMemoryCheckBox->isChecked();
+    return Niijima::heapMemory(automatic, automatic ? SysInfo::defaultMaxJvmMem() : 0,
+                              m_ui->minMemSpinBox->value(), m_ui->maxMemSpinBox->value());
+}
+
 void JavaSettingsWidget::updateThresholds()
 {
     auto sysMiB = HardwareInfo::totalRamMiB();
-    unsigned int maxMem = m_ui->maxMemSpinBox->value();
-    unsigned int minMem = m_ui->minMemSpinBox->value();
+    const bool automatic = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher") &&
+                           m_ui->automaticMemoryCheckBox->isChecked();
+    if (automatic != m_showingAutomaticMemory) {
+        if (automatic) {
+            m_manualMemory = {m_ui->minMemSpinBox->value(), m_ui->maxMemSpinBox->value()};
+        } else {
+            const QSignalBlocker minimumBlocker(m_ui->minMemSpinBox);
+            const QSignalBlocker maximumBlocker(m_ui->maxMemSpinBox);
+            m_ui->minMemSpinBox->setValue(m_manualMemory.minimumMiB);
+            m_ui->maxMemSpinBox->setValue(m_manualMemory.maximumMiB);
+        }
+        m_showingAutomaticMemory = automatic;
+    }
+    if (automatic) {
+        const auto preview = selectedMemory();
+        const QSignalBlocker minimumBlocker(m_ui->minMemSpinBox);
+        const QSignalBlocker maximumBlocker(m_ui->maxMemSpinBox);
+        m_ui->minMemSpinBox->setValue(preview.minimumMiB);
+        m_ui->maxMemSpinBox->setValue(preview.maximumMiB);
+    }
+    m_ui->minMemSpinBox->setEnabled(!automatic);
+    m_ui->maxMemSpinBox->setEnabled(!automatic);
+    m_ui->labelMinMem->setEnabled(!automatic);
+    m_ui->labelMaxMem->setEnabled(!automatic);
+    const auto memory = selectedMemory();
+    const auto maxMem = static_cast<uint64_t>(automatic ? memory.maximumMiB : m_ui->maxMemSpinBox->value());
+    const auto minMem = static_cast<uint64_t>(automatic ? memory.minimumMiB : m_ui->minMemSpinBox->value());
 
     const QString warningColour(QStringLiteral("<span style='color:#f5c211'>%1</span>"));
 

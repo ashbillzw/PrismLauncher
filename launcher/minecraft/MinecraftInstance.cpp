@@ -38,6 +38,7 @@
 #include "MinecraftInstance.h"
 #include "Application.h"
 #include "BuildConfig.h"
+#include "SysInfo.h"
 #include "Json.h"
 #include "QObjectPtr.h"
 #include "settings/Setting.h"
@@ -212,6 +213,7 @@ void MinecraftInstance::loadSpecificSettings()
 
         // Memory
         auto memorySetting = m_settings->registerSetting("OverrideMemory", false);
+        m_settings->registerOverride(global_settings->getSetting("AutomaticMemory"), memorySetting);
         m_settings->registerOverride(global_settings->getSetting("MinMemAlloc"), memorySetting);
         m_settings->registerOverride(global_settings->getSetting("MaxMemAlloc"), memorySetting);
         m_settings->registerOverride(global_settings->getSetting("PermGen"), memorySetting);
@@ -587,6 +589,15 @@ QStringList MinecraftInstance::extraArguments()
     return list;
 }
 
+Niijima::HeapMemory MinecraftInstance::heapMemory()
+{
+    const bool automatic = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher") &&
+                           settings()->get("AutomaticMemory").toBool();
+    // Read the current machine on demand, including every launch; do not persist the result.
+    return Niijima::heapMemory(automatic, automatic ? SysInfo::defaultMaxJvmMem() : 0,
+                              settings()->get("MinMemAlloc").toInt(), settings()->get("MaxMemAlloc").toInt());
+}
+
 QStringList MinecraftInstance::javaArguments()
 {
     QStringList args;
@@ -627,15 +638,9 @@ QStringList MinecraftInstance::javaArguments()
     }
 #endif
 
-    int min = settings()->get("MinMemAlloc").toInt();
-    int max = settings()->get("MaxMemAlloc").toInt();
-    if (min < max) {
-        args << QString("-Xms%1m").arg(min);
-        args << QString("-Xmx%1m").arg(max);
-    } else {
-        args << QString("-Xms%1m").arg(max);
-        args << QString("-Xmx%1m").arg(min);
-    }
+    const auto memory = heapMemory();
+    args << QString("-Xms%1m").arg(memory.minimumMiB);
+    args << QString("-Xmx%1m").arg(memory.maximumMiB);
 
     // No PermGen in newer java.
     JavaVersion javaVersion = getJavaVersion();

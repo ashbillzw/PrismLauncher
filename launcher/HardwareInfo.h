@@ -24,6 +24,8 @@
 namespace HardwareInfo {
 QString cpuInfo();
 uint64_t totalRamMiB();
+// Installed DIMM capacity on Windows; zero if unavailable.
+uint64_t installedRamMiB();
 uint64_t availableRamMiB();
 QStringList gpuInfo();
 }  // namespace HardwareInfo

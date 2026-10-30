@@ -192,6 +192,8 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QPushButton:pressed { background: #ffd082; }
         QPushButton:disabled { color: #9d8e78; border-color: #d7c6ae; background: #eee0cc; }
         QPushButton#minimize, QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
+        /* The titlebar is inset 1px from the window's 14px corner. */
+        QPushButton#close { border-top-right-radius: 13px; }
         QPushButton#minimize:hover { background: rgba(255, 255, 255, 35); }
         QPushButton#minimize:pressed { background: rgba(255, 255, 255, 60); }
         QPushButton#close:hover { background: #c42b1c; color: white; }

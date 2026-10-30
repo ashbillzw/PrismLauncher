@@ -70,8 +70,24 @@ private slots:
             QVERIFY(file.open(QIODevice::WriteOnly));
             file.write(json);
             file.close();
-            QCOMPARE(Niijima::LocalTest::load(path).testWarning, json.contains("testWarning"));
+            const auto config = Niijima::LocalTest::load(path);
+            QCOMPARE(config.testWarning, json.contains("testWarning"));
+            QVERIFY(config.testWarningText.isEmpty());
         }
+    }
+
+    void warningCustomText()
+    {
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("config.json");
+        const QString text = QStringLiteral("这是一条测试警告。\n第二行");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(QJsonDocument(QJsonObject{{"testWarning", text}}).toJson());
+        file.close();
+        const auto config = Niijima::LocalTest::load(path);
+        QVERIFY(config.testWarning);
+        QCOMPARE(config.testWarningText, text);
     }
 
     void missingAndInvalidConfig()

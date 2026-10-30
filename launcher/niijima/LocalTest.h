@@ -11,6 +11,7 @@ QString distributionRoot();
 struct LocalTest {
     bool enabled = false;
     bool testWarning = false;
+    QString testWarningText;
     QString pack;
     QString mirror;
     QString error;

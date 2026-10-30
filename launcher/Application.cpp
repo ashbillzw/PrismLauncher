@@ -1808,7 +1808,9 @@ void Application::showNiijimaHome()
         if (lowMemory || m_localTest.testWarning) {
             auto* warning = CustomMessageBox::selectable(
                 m_niijimaHome, tr("Warning"),
-                QStringLiteral("当前电脑内存较低（小于16GB），游戏可能不能正确运行。"),
+                m_localTest.testWarning && !m_localTest.testWarningText.isEmpty()
+                    ? m_localTest.testWarningText
+                    : QStringLiteral("当前电脑内存较少（小于16GB），游戏可能不能正确运行。"),
                 QMessageBox::Warning, QMessageBox::Ok, QMessageBox::Ok);
             warning->setAttribute(Qt::WA_DeleteOnClose);
             warning->open();

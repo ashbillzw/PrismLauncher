@@ -1,5 +1,34 @@
 # PrismLauncher 交接
 
+## 2026-10-31 01:31 首页更新版已编译、打包交付
+
+- 用户要求全部编译/打包/分类提交。Release构建成功，CTest IconUtils、NiijimaPackIndex、NiijimaLocalTest共3组全部通过，覆盖首页超时/迟到/旧回调、发布ID不回退及共用本地索引/ZIP传输；GUI更新按钮、实际新实例安装与旧游戏同时运行尚待用户测试。首次编译因局部data遮蔽QWidget::data的C4458警告被/WX拒绝，改名receiptData后增量构建成功，没有降低警告级别。
+- 测试入口仍为install-niijima/niijima-launcher.exe，41599488字节，生成时间2026-10-31 01:29:33 +08:00，SHA256=8D5DF4E12F087043C66908B719692370FEFB38416C0EEBABAD2B1D6BE555D469；与build-ashbill/Release中EXE一致。测试配置现只保留packs、mirror、testWarning，旧pack键已删除。无需关闭正在运行的实例，本轮未启动/修改游戏。
+- build-test.bat与build.bat均成功：测试包1.6.test0004、589359541字节；普通包1.6.0、130961654字节。本机test计数现在4。已将新测试包登记为发布ID3，固定文件名新岛铁道 v1.6.test0004.zip，仓库外prism-local-test/packs中的latest.json与仓库维护源一致。ID2/test0003及其ZIP保留，下一发布ID必须大于3；test编号与发布ID仍独立。
+- 本轮也补齐NSIS 3.13便携工具（官方ZIP SHA256与项目历史核验值一致）并生成安装器：build-ashbill/dist/NiijimaLauncher-Setup.exe，31955510字节，SHA256=201D02144EBDBAF9C292C7D08ED1232D884E00867F8AB16ED3330E93FEE4B528。交付副本在C:/mydata/Agents/Codex-CreateTrainResync/本地资源/启动器安装器/2026-10-31/NiijimaLauncher-Setup.exe，哈希一致。采用仓库外全新runtime-home-updates-20261031目录收集，45项payload清单不含测试JSON/实例/账号文件，许可证保留。未执行安装器、未签名、未上传；正式分发索引上一轮HTTP404状态未被本轮改变。
+- 功能源码提交0c7c873ce；发布索引及交付文档另分组提交，整合包仓库仅记录本轮打包结果。构建早于提交，内嵌Git HEAD可能滞后，不能据此否定功能已编入。构建/打包/测试日志与旧EXE备份均在独立工作目录prism-build，前缀home-updates、home-updates-retry1；没有为元数据重复构建。
+- **下方“源码完成未构建/未执行新增测试/旧pack键临时保留/当前最新ID2”等描述为历史，已由本节交付状态替代。** 下方曾讨论原地覆盖更新的分析已废弃；当前更新只新建实例并保留旧实例。
+
+## 2026-10-31 首页检查更新与新实例安装（源码完成，未构建）
+
+- 用户已确认首页状态：每次正常显示首页时灰色禁用“加载中”，不展示检查更新文案；检查成功立即解除等待，1000ms（PreciseTimer）到时也解除等待，网络请求继续，迟到的新版本仍切换“更新游戏”。已有实例且无新版时沿用“启动游戏”/游戏运行时“打开控制台”，无实例仍为“下载游戏”。失败只写日志，1秒后允许原有操作。旧请求的完成/超时回调用generation隔离；开始安装及关闭首页时取消检查。
+- **用户纠正：更新是新建实例，绝不是覆盖旧实例。** 首页导入显式setCreateNewInstance(true)，经InstanceImportTask传至ModrinthCreationTask，在旧实例探测之前进入createInstance；普通Prism导入默认行为不改。新包成功提交才remember为首选，旧实例、存档、设置及正在运行的旧游戏不改动；同名文件夹由原生DirNameFromString生成唯一后缀。不添加“游戏运行时不能更新”的限制，也不自动搬迁旧数据。发现更新优先显示“更新游戏”，旧游戏仍可通过Prism控制台访问。
+- **用户纠正：本地测试与正式流程只在文件获取层不同。** 删除首页local.pack直读分支。本地也调用同一PackIndexTask→数字ID选择/比较→InstanceImportTask→新实例提交；LocalTestNetwork将正式URL下packs/*映射到本地packs目录，将niijima-mirror/*映射到本地mirror。无效本地配置/缺文件不回退访问正式分发。原NiijimaPackUrl直链覆盖仍是显式例外：无索引则不能检查更新，不是本地测试默认路径。
+- **发布ID全局递增，不因测试转正式而回退，且与testNNNN毫无数值绑定。** 新实例成功提交后写niijima-release.json（十进制字符串id、实际manifest versionId、source索引URL）。比较只用target.id > installedId；配置固定到更小ID不会给已有新版显示更新。旧实例无记录时以索引唯一version匹配ID，无法匹配/存在歧义时视为0，新建一次实例后得到明确ID。索引version只是显示标签，保存receipt不要求它等于包内versionId；receipt绑定实际manifest用于识别之后手动换包。
+- 已在tools/niijima/deploy/packs/latest.json的原ID1后登记ID2 → 1.6.test0003 → 新岛铁道 v1.6.test0003.zip；公开正式索引本轮GET返回404，未上传。仓库外prism-local-test/packs有同一JSON与现有测试ZIP的固定文件名副本（589359541字节），不改build/test-sequence，也不重新打包。下次登记发布ID必须大于2；保留历史ID，不重用，不从test0003推导为ID3。
+- install-niijima/niijima-local-test.json已增加packs目录，保留mirror/testWarning；旧pack键临时保留，让当前尚未替换的旧EXE仍能运行，新代码完全不读取pack键。新构建交付后可移除旧键。配置备份在仓库外prism-build/niijima-local-test-before-home-updates-20261031.json。源码、测试、文档未提交，EXE未编译/替换，游戏实例未更改。
+- 新增回归源码覆盖1秒UI门限/迟到及过期结果、测试转正式的ID单调规则，以及同一正式URL/解析器通过本地网络映射读取索引和ZIP，保留原校验/缺文件失败检查。git diff --check及调用链静态审阅通过；**本轮未编译执行这些测试，不等于运行验收通过**。沿用用户“明确要求后才构建”的迭代约定。
+- 下方“方案待确认”“复用原地更新”和旧EXE不检查更新均为历史；当前目标以本节为准，已交付EXE能力仍以00:40记录为准，不能把源码完成当成已交付。
+
+## 2026-10-31 首页更新触发核查（方案待确认，未改源码）
+
+- 用户明确指出每次进入首页都应检查整合包更新；此前“旧实例不会自动升级”是当前实现缺口，不是目标行为。NiijimaHomeWindow::primaryAction 在找到实例后直接 launch 并 return，只有无实例的下载路径调用 startReleaseLookup；其成功回调直接导入，尚未区分检查与安装。进入首页应独立触发检查，不能仅把现有下载函数挪到 show 时执行，否则会直接下载/导入。
+- 已向用户发出选项卡：发现新版后主按钮改为“更新游戏”，点击后更新；或自动开始更新。用户回复前不实现依赖该选择的按钮文案和安装行为。每次进入首页检查本身不再待确认。
+- 可复用 InstanceImportTask 的 original_instance_id → ModrinthCreationTask 既有更新路径；需明确指向当前实例，不能仅靠包名匹配。正式索引的数字发布 ID 当前未持久化；已有实例可读取 mrpack/modrinth.index.json 的 versionId，但迁移匹配和本地测试 ZIP 的版本检查仍需实现。游戏运行时不能替换实例。
+- 原生更新会删除旧索引/override 清单对应文件再合并 staging，并非完整事务回滚；overrides 内的用户配置可能被替换，saves 路径有原生询问。接入前需核对这一边界，不宣称所有用户配置自动保留或失败完全无影响。未修改实例、未下载包、未构建、未提交。
+- 历史方案《Prism开屏与镜像源码核查方案》当时第6节只纳入下载/启动/进入Prism，明确未纳入额外更新系统；该范围不再代表用户本次要求。下方00:40交付记录仍描述已交付EXE，尚无首页更新检查。
+
+
 ## 2026-10-31 00:40 图标/名称及自定义警告版已交付
 
 - 用户要求把可打包、编译、提交的当前工作完成。Release编译成功，CTest IconUtils、NiijimaPackIndex、NiijimaLocalTest三组全部通过；涵盖原生/PCL图标优先级和路径约束、版本发布索引、自定义警告字符串、自动内存策略等。未实测GUI新导入或游戏启动。

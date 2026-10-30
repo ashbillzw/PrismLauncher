@@ -1,5 +1,12 @@
 # Windows 安装器打包
 
+## 2026-10-31 01:31 新安装器已生成
+
+- 已包含首页更新检查/新建实例、自动内存、自定义警告、图标和名称导入等当前源码。Release及3组相关CTest通过，不代表真实安装/卸载或GUI交互验收。
+- 安装器build-ashbill/dist/NiijimaLauncher-Setup.exe为31955510字节；SHA256=201D02144EBDBAF9C292C7D08ED1232D884E00867F8AB16ED3330E93FEE4B528。交付副本：C:/mydata/Agents/Codex-CreateTrainResync/本地资源/启动器安装器/2026-10-31/NiijimaLauncher-Setup.exe，哈希一致。
+- 本机NSIS3.13便携工具放仓库外prism-build/nsis-toolchain/extracted/nsis-3.13，官方ZIP哈希与下方历史记录一致。通过CMake --install --prefix收集到全新prism-build/runtime-home-updates-20261031，再调用原tools/niijima/package_windows.ps1，避免把测试目录JSON混入安装器；45项payload清单确认不含测试配置、游戏实例或账号。未改变打包白名单。
+- 未执行安装器、未签名、未写注册表、未上传。现有测试EXE目录保留packs/mirror/testWarning配置，正式安装器没有该文件。下方2026-10-29大小/机器路径属于历史，不代表本轮交付。
+
 ## 当前迭代约定（2026-10-29 用户明确要求）
 
 - 修改后先保留源码/文档，**只有用户明确指示构建时才配置、编译、收集运行目录或重打安装器**；未构建的回复应明确写“未构建”。不要因代码修改自动触发 CMake/Ninja/NSIS。

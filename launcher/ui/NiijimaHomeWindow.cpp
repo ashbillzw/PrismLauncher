@@ -77,6 +77,27 @@ protected:
         option.text.clear();
         QStylePainter painter(this);
         painter.drawControl(QStyle::CE_PushButton, option);
+        const bool striped = isEnabled() && property("running").toBool();
+        if (striped) {
+            painter.save();
+            painter.setRenderHint(QPainter::Antialiasing);
+            const QRectF face = QRectF(rect()).adjusted(1, 1, -1, -1);
+            QPainterPath clip;
+            clip.addRoundedRect(face, 9, 9);
+            painter.setClipPath(clip);
+            const QColor yellow(isDown() ? "#cda51e" : underMouse() ? "#ffdb50" : "#f2c230");
+            painter.fillRect(face, yellow);
+            constexpr int stripeWidth = 16;
+            for (int x = -height(); x < width() + height(); x += 2 * stripeWidth) {
+                QPolygonF stripe;
+                stripe << QPointF(x, height()) << QPointF(x + stripeWidth, height())
+                       << QPointF(x + stripeWidth + height(), 0) << QPointF(x + height(), 0);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(QColor("#242424"));
+                painter.drawPolygon(stripe);
+            }
+            painter.restore();
+        }
         auto labelFont = font();
         if (label.size() > 4) {
             const auto width = QFontMetricsF(labelFont).tightBoundingRect(QStringLiteral("启动游戏")).width();
@@ -87,7 +108,14 @@ protected:
         painter.setFont(labelFont);
         painter.setPen(isEnabled() ? QColor(Qt::white) : QColor("#aab0ba"));
         const auto bounds = QFontMetricsF(labelFont).tightBoundingRect(label);
-        painter.drawText(QRectF(rect()).center() - bounds.center(), label);
+        const QPointF origin = QRectF(rect()).center() - bounds.center();
+        if (striped) {
+            QPainterPath lettering;
+            lettering.addText(origin, labelFont, label);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.strokePath(lettering, QPen(QColor("#242424"), 4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        }
+        painter.drawText(origin, label);
     }
 };
 
@@ -175,9 +203,6 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 36px; font-weight: 700; letter-spacing: 11px; padding: 0; }
         QWidget#homeBody QPushButton#primary:hover { background: #ffad28; }
         QWidget#homeBody QPushButton#primary:pressed { background: #de8600; }
-        QWidget#homeBody QPushButton#primary[running="true"] { background: #bb8c46; border-color: #d7ac70; }
-        QWidget#homeBody QPushButton#primary[running="true"]:hover { background: #cb9c56; }
-        QWidget#homeBody QPushButton#primary[running="true"]:pressed { background: #a57a38; }
         QWidget#homeBody QPushButton#prism { background: rgba(84, 75, 70, 205); border-color: rgba(194, 181, 166, 130); border-radius: 8px; font-size: 13px; padding: 8px 14px; }
         QWidget#homeBody QPushButton#prism:hover { background: rgba(105, 94, 86, 230); border-color: rgba(225, 213, 198, 170); }
         QWidget#homeBody QPushButton#prism:pressed { background: rgba(66, 59, 53, 235); }

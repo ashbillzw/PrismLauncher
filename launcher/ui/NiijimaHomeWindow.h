@@ -11,7 +11,6 @@ class QUrl;
 class QLabel;
 class QPushButton;
 class QProgressBar;
-class QComboBox;
 class InstanceTask;
 class MinecraftInstance;
 class NiijimaHomeWindow : public QWidget {
@@ -31,7 +30,8 @@ class NiijimaHomeWindow : public QWidget {
     void checkForUpdates();
     void cancelUpdateCheck();
     bool updateAvailable() const;
-    void saveReleaseReceipt(const Niijima::PackRelease& release, const QString& source);
+    Result<> savePackId(quint64 packId);
+    void selectLatestInstance();
     void refresh();
     void refreshPackVersion();
     void refreshPrimaryAction();
@@ -40,7 +40,6 @@ class NiijimaHomeWindow : public QWidget {
     void onPrismClosing();
     void showDownloadError(const QString& message, const QString& details);
     void startReleaseLookup(const QUrl& indexUrl, const QString& requestedId);
-    void remember(const QString& id);
     void startImport(const QUrl& url);
     void updateTransferText(const TaskStepProgress& progress);
     QPixmap m_frostedBackground;
@@ -49,12 +48,11 @@ class NiijimaHomeWindow : public QWidget {
     QLabel* m_packVersion;
     QPushButton* m_primary;
     QPushButton* m_cancel;
-    QComboBox* m_instances;
+    QString m_selectedInstance;
+    quint64 m_selectedPackId = 0;
     QProgressBar* m_progress;
     Niijima::HomeUpdateState m_update;
     QPointer<Task> m_checkTask;
-    QHash<QString, quint64> m_releaseIdsByVersion;
-    QString m_releaseSource;
     QPointer<Task> m_task;
     QPointer<InstanceTask> m_import;
     QString m_committedId;

@@ -47,6 +47,8 @@ set(CORE_SOURCES
     InstanceImportTask.cpp
 
     # Niijima pack release index
+    niijima/InstalledPacks.h
+    niijima/InstalledPacks.cpp
     niijima/HomeUpdateState.h
     niijima/PackIndex.h
     niijima/PackIndex.cpp

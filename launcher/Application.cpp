@@ -660,16 +660,12 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings.reset(new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "polymc.cfg", "multimc.cfg" }, this));
 
         m_settings->registerSetting("NiijimaHomeEnabled", true);
-        // A saved direct pack URL remains an opt-in override of the release index.
-        m_settings->registerSetting("NiijimaPackUrl", QString());
         m_settings->registerSetting(
             "NiijimaPackIndexUrl",
             BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher")
                 ? Niijima::distributionRoot() + QStringLiteral("packs/latest.json")
                 : QString());
         m_settings->registerSetting("NiijimaPackVersionId", QString());
-        m_settings->registerSetting("NiijimaInstanceIds", QStringList());
-        m_settings->registerSetting("NiijimaPreferredInstance", QString());
         m_settings->registerSetting("NiijimaDefaultsApplied", false);
         // Theming
         m_settings->registerSetting("IconTheme", QString());

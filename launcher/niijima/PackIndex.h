@@ -2,7 +2,6 @@
 #pragma once
 
 #include <QByteArray>
-#include <QHash>
 #include <QString>
 #include <QUrl>
 
@@ -17,6 +16,8 @@ struct PackRelease {
     QUrl packUrl;
 };
 
+Result<quint64> parsePackId(const QString& text);
+
 // IDs are canonical positive decimal quint64 values; an empty requestedId selects the greatest ID.
 Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl, const QString& requestedId = {});
 
@@ -26,7 +27,6 @@ class PackIndexTask : public Task {
     explicit PackIndexTask(const QUrl& indexUrl, QString requestedId = {}, QObject* parent = nullptr);
 
     const PackRelease& release() const { return m_release; }
-    const QHash<QString, quint64>& releaseIdsByVersion() const { return m_releaseIdsByVersion; }
     bool abort() override;
 
    protected:
@@ -36,7 +36,6 @@ class PackIndexTask : public Task {
     QUrl m_indexUrl;
     QString m_requestedId;
     PackRelease m_release;
-    QHash<QString, quint64> m_releaseIdsByVersion;
     Task::Ptr m_download;
 };
 

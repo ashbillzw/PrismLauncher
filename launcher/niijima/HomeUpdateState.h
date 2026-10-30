@@ -33,7 +33,7 @@ struct HomeUpdateState {
 
 inline bool needsPackUpdate(const PackRelease& target, quint64 installedId)
 {
-    // Unknown legacy IDs are 0. Test/production labels never affect release ordering.
+    // Test/production labels never affect pack-id ordering.
     return target.id > installedId;
 }
 } // namespace Niijima

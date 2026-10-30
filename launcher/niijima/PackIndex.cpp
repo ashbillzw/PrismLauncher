@@ -21,23 +21,6 @@ bool validIndexUrl(const QUrl& url)
            url.userInfo().isEmpty() && !url.hasFragment();
 }
 
-Result<quint64> parseId(const QString& text)
-{
-    if (text.isEmpty() || text.startsWith(QLatin1Char('0')))
-        return std::unexpected(QStringLiteral("版本 ID 必须是无前导零的十进制正整数。"));
-
-    quint64 value = 0;
-    for (const QChar ch : text) {
-        if (ch < QLatin1Char('0') || ch > QLatin1Char('9'))
-            return std::unexpected(QStringLiteral("版本 ID 必须是无前导零的十进制正整数。"));
-        const quint64 digit = ch.unicode() - ushort('0');
-        if (value > (std::numeric_limits<quint64>::max() - digit) / 10)
-            return std::unexpected(QStringLiteral("版本 ID 超出支持的整数范围。"));
-        value = value * 10 + digit;
-    }
-    return value;
-}
-
 bool validFileName(const QString& name)
 {
     if (name.isEmpty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains(':'))
@@ -51,6 +34,23 @@ bool validFileName(const QString& name)
 
 }  // namespace
 
+Result<quint64> parsePackId(const QString& text)
+{
+    if (text.isEmpty() || text.startsWith(QLatin1Char('0')))
+        return std::unexpected(QStringLiteral("pack-id 必须是无前导零的十进制正整数。"));
+
+    quint64 value = 0;
+    for (const QChar ch : text) {
+        if (ch < QLatin1Char('0') || ch > QLatin1Char('9'))
+            return std::unexpected(QStringLiteral("pack-id 必须是无前导零的十进制正整数。"));
+        const quint64 digit = ch.unicode() - ushort('0');
+        if (value > (std::numeric_limits<quint64>::max() - digit) / 10)
+            return std::unexpected(QStringLiteral("pack-id 超出支持的整数范围。"));
+        value = value * 10 + digit;
+    }
+    return value;
+}
+
 Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl, const QString& requestedId)
 {
     if (!validIndexUrl(indexUrl))
@@ -59,7 +59,7 @@ Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl,
     const QString requested = requestedId.trimmed();
     quint64 requestedNumber = 0;
     if (!requested.isEmpty()) {
-        auto id = parseId(requested);
+        auto id = parsePackId(requested);
         if (!id)
             return std::unexpected(id.error());
         requestedNumber = *id;
@@ -75,9 +75,9 @@ Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl,
     PackRelease selected;
     const auto object = document.object();
     for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
-        auto id = parseId(it.key());
+        auto id = parsePackId(it.key());
         if (!id)
-            return std::unexpected(QStringLiteral("版本索引中的 ID“%1”无效：%2").arg(it.key(), id.error()));
+            return std::unexpected(QStringLiteral("版本索引中的 pack-id“%1”无效：%2").arg(it.key(), id.error()));
         if (!it.value().isObject())
             return std::unexpected(QStringLiteral("版本 %1 的记录必须是对象。").arg(it.key()));
 
@@ -99,7 +99,7 @@ Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl,
     }
 
     if (selected.id == 0)
-        return std::unexpected(QStringLiteral("版本索引中不存在指定的 ID %1。").arg(requested));
+        return std::unexpected(QStringLiteral("版本索引中不存在指定的 pack-id %1。").arg(requested));
     return selected;
 }
 
@@ -114,14 +114,13 @@ PackIndexTask::PackIndexTask(const QUrl& indexUrl, QString requestedId, QObject*
 void PackIndexTask::executeTask()
 {
     m_release = {};
-    m_releaseIdsByVersion.clear();
     if (!validIndexUrl(m_indexUrl)) {
         emitFailed(QStringLiteral("版本索引地址无效；请检查 NiijimaPackIndexUrl。"));
         return;
     }
     // Reject a malformed pinned ID without making an unnecessary request.
     if (const QString requested = m_requestedId.trimmed(); !requested.isEmpty()) {
-        if (auto id = parseId(requested); !id) {
+        if (auto id = parsePackId(requested); !id) {
             emitFailed(id.error());
             return;
         }
@@ -150,12 +149,6 @@ void PackIndexTask::executeTask()
         if (!result) {
             emitFailed(result.error());
             return;
-        }
-        // Only unambiguous labels can identify pre-receipt imports.
-        const auto entries = QJsonDocument::fromJson(*response).object();
-        for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
-            const auto version = it.value().toObject().value("version").toString().trimmed();
-            m_releaseIdsByVersion[version] = m_releaseIdsByVersion.contains(version) ? 0 : it.key().toULongLong();
         }
         m_release = std::move(*result);
         emitSucceeded();

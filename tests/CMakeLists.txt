@@ -23,6 +23,7 @@ set(TEST_SOURCES
     Index_test.cpp
     Version_test.cpp
     ModrinthUrl_test.cpp
+    NiijimaInstalledPacks_test.cpp
     NiijimaPackIndex_test.cpp
     NiijimaLocalTest_test.cpp
     MetaComponentParse_test.cpp

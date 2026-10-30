@@ -1,5 +1,14 @@
 # PrismLauncher 交接
 
+## 2026-10-31 02:31 测试警告关闭、最小化原话与构建窗口重测
+
+- 当前 install-niijima/niijima-local-test.json 已删除 testWarning，保留 packs/mirror。LocalTest 解析器新增：testWarning 值为空字符串时不触发测试警告；缺键同样不触发，非空字符串显示原文。原有非字符串 true/false/null 的“键存在即触发”行为未在本次改变；真实低内存警告不受这个测试开关影响。
+- Release 构建、NiijimaLocalTest 回归通过（含新增空字符串关闭测试）；测试 EXE 已替换，41,588,224 字节，2026-10-31 02:29:50 +08:00，SHA256 0071F7C3868ADC2A7D9105C3E70938953AB723E5EFF263A8BBE3447EF29A0998，与 Release 产物一致。未实际打开 GUI。下方 02:15 的 EXE/启用测试文案状态已被本节替代；安装器未重打，仍为该节产物。本节初写时源码、测试及文档尚未提交（历史状态）；2026-10-31 后续按用户要求提交：警告修复及测试为 db0a64395，规则与交付文档另组提交。验证沿用上述构建结果，不重复编译。
+- 聊天原话核实：在「（编程1）更新助手指令偏好」2026-10-30 04:44:06 +08:00，用户说“我发现你的 控件根本没有最小化按钮。今天太晚了先到这吧。没做完的都写到todo，然后commit work，然后fetch pull merge。”当时按停工要求记录到整合包 agent/todo-list.md 的“补首页手动最小化按钮”；仍未实现。本轮只核实，不将询问扩大为控件开发。
+- 弹窗确实复用 CustomMessageBox::selectable（内部 new QMessageBox）；其 parent 为首页，继承首页通用 QPushButton 的 border-radius:10px 等样式。用户明确接受此继承外观，本轮不改样式。不能把“复用实现”说成“外观与原生 Prism 完全相同”。
+- 默认最小化重测：最初观察到展开/前台变化，但未记录输入，用户表示可能手动点开，因此不能据此认定 Windows Terminal 忽略参数。成功重测的窗口归属进程为 powershell；这不等于已验证直接 wt.exe 启动路径，两者不要混称。02:29:51–02:30:17 使用原始 Start-Process powershell.exe -WindowStyle Minimized 路径重测，同时记录 GetLastInputInfo：没有输入活动，测试窗口始终最小化，任务 3 秒加倒计时 15 秒后退出。期间系统前台句柄仍有变化，故只确认“默认最小化、不自动展开”，不宣称完全不改变键盘焦点。传统控制台/不激活模式的探索没有应用到构建流程。无实际关闭既有终端操作。
+- 本轮增量构建也使用 Minimized 启动和既有 15 秒关闭包装器。日志前缀 prism-build/build-empty-warning-20261031；配置备份 niijima-local-test-before-warning-disabled-20261031.json；最小化观测 minimized-window-test.json 均位于仓库外工作目录。没有重复构建整合包或修改发布 pack-id。
+
 ## 2026-10-31 02:15 最大 pack-id 与单文件元数据版已交付
 
 本节替代下方 01:59/首页取消选择框章节的“源码未构建、未替换 EXE、测试未执行”状态；旧双文件、source、旧测试兼容方案仍为过时历史。

@@ -1,5 +1,52 @@
 # PrismLauncher 交接
 
+## 2026-10-31 自动内存与警告测试版已交付
+
+- 用户明确要求编译、更新测试EXE并分类提交。Release完整构建成功；NiijimaLocalTest回归通过（QtTest 7项含初始化/收尾，0失败），覆盖曲线边界、自动忽略旧4096、手动恢复策略、低内存阈值、testWarning键存在语义和本地下载校验。未运行无关测试、未实测游戏或弹窗UI。
+- `install-niijima/niijima-launcher.exe` 已更新，41,580,544字节，文件时间2026-10-31 00:06:57 +08:00；SHA256为 `EEFFDE2E04BDFB5313C50C5CE2F5B0F9462760191FD79ADA48D5FE585BA9A149`，与build-ashbill/Release对应EXE相同。保留既有测试JSON的pack、mirror及testWarning:true；用户重新启动即可强制弹警告。64GiB机器自动模式预期-Xms512m/-Xmx32768m，实际游戏参数待用户测试。未重制安装器、未改现有Roaming手动内存配置。
+- 备份旧EXE及构建/测试/安装日志位于仓库外 `C:/mydata/Agents/Codex-CreateTrainResync/prism-build/`，文件前缀build/test/install-auto-memory-20261031；旧EXE为niijima-launcher-before-auto-memory-20261031.exe。命令从00:04:02至00:06:59完成，约2分57秒；结果确认等待另在任务阶段日志记录。
+- 源码分类提交：584020d9f（控制台按钮黄黑斜纹及白字描边）、71e199fc5（自动内存与低内存/强制测试警告）。文档另行提交。构建早于本次提交，程序内嵌Git HEAD可能仍为旧值，不能据此否认功能已编入；本轮不为元数据再次构建。未push，由用户手动推送。
+- **以下“尚未构建/未更新EXE/新增测试未运行”已过时**，以上交付结果取代对应状态，历史实现与诊断记录保留。
+
+## 2026-10-30 自动分配内存开关（源码完成，未构建）
+
+- 用户明确要求默认开启自动分配，每次启动游戏按此前曲线计算，关闭后才使用手动值。新增 AutomaticMemory，新岛品牌默认 true、普通 Prism 默认 false 且隐藏该控件；旧配置缺键直接采用默认 true，不删除或猜测迁移已有 MaxMemAlloc=4096。
+- Java 设置内存组新增“自动分配内存”，全局及实例共用；实例通过既有 OverrideMemory 决定是否继承全局开关。自动模式显示计算结果并禁用最小/最大输入；关闭时恢复该窗口进入自动模式前的手动数值。保存自动模式不把预览值写入 MinMemAlloc/MaxMemAlloc，已有手动配置保留。
+- MinecraftInstance::heapMemory 在需要启动参数时重新读取当前安装总内存（失败回退可见总内存），使用既定曲线；最小堆512MiB、最大堆沿(6,4)→(16,12)→(32,24)→(64,32)→(128,48)，之后封顶48GiB。硬件未知回退最大4096MiB；不按空闲内存比例计算，不缓存为永久配置。手动模式保留原版最小/最大颠倒时排序逻辑。
+- 最终 -Xms/-Xmx、EnsureAvailableMemory 和 VerifyJavaInstall 32位提示统一调用该入口；设置页的测试Java/选32位Java检查也使用当前有效模式。保留原版空闲内存不足提示，不自动减小用户确认的曲线值。启动前读取是按需计算，非单次启动快照；不会持久化计算结果。
+- 核查：git diff --check 通过；Qt uic 解析 UI 并生成仓库外头文件成功；审阅所有 MinMemAlloc/MaxMemAlloc 读写点，余下直接读取是手动设置/向导/导出推荐值，不用于游戏堆参数。已补 automaticAndManualMemory 回归用例（旧4096忽略、换机器曲线、关闭恢复手动、颠倒值、硬件未知），遵守“明确要求后才构建”约定，本轮未编译或执行新增测试、未运行GUI、未更新 EXE、未提交。
+- **历史状态修正**：下文“仅改变默认值、没有自动开关”“询问是否清除旧4096”已被本节新方案替代；旧值保留给手动模式即可，无需清除。先前通过的测试属于开关加入前版本，不能视作本次改动通过运行验证。
+
+## 2026-10-30 默认内存曲线与启动警告（源码及测试目标通过，EXE未更新）
+
+- 用户确认图中坐标为（电脑总内存GiB，游戏最大堆GiB），执行默认策略：0–6按2/3；连接(6,4)、(16,12)、(32,24)、(64,32)、(128,48)，其后封顶48；整数MiB插值，不用浮点阈值。仅新岛品牌默认值改变，最小堆仍512MiB，普通Prism默认逻辑保留；这是按总内存的默认值，不是每次启动游戏按空闲内存80%分配。
+- Windows优先GetPhysicallyInstalledSystemMemory读取安装容量，失败回退系统可见总内存；两种读取均未知时默认最大堆回退4096MiB。警告在安装内存<16GiB时显示；读取失败时用可见内存<15GiB容差，未知0不误判。Microsoft文档说明系统可见内存会扣除固件/设备保留，不是浮点精度问题：https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getphysicallyinstalledsystemmemory 。
+- 首次显示新岛首页时复用CustomMessageBox::selectable，Warning图标、原有确认按钮，文案原样为“当前电脑内存较低（小于16GB），游戏可能不能正确运行。”；每进程最多一次，返回首页不重复，不阻止用户确认后继续。正常检测与测试强制条件共用同一弹窗。
+- 程序旁niijima-local-test.json新增testWarning：按用户要求只判断key存在，true/false/null均强制弹同款窗口，删除key才关闭强制测试；不改变内存读取或分配。现有install-niijima JSON已添加true，原文件备份在独立工作目录prism-build/niijima-local-test-before-warning-20261030.json。完整格式见本地安装测试专题。
+- 现有Roaming/NiijimaLauncher配置仍为MaxMemAlloc=4096，实例OverrideMemory=false，尚未删除或修改。已向用户询问是否清除，用户在追问保存机制，未批准。不能把已保存值认定为用户主动设置：Java向导确认及普通Java设置页应用会保存未改动的值，但当前自动下载Java开启时，createSetupWizard直接使javaRequired=false、不创建JavaWizardPage，不调用其validatePage。跳过向导不是自动confirm；本机4096最初写入来源仍未证实，不用通用保存路径冒充证据。没有自动迁移旧值。
+- **2026-10-30 23:45 源码追查补充（替代上条仅列举可能入口的解释）**：全局设置通过 GenericPageProvider::getPages 一次构造所有页面，包含 JavaPage；JavaSettingsWidget 构造时 loadSettings 将有效默认值装入控件。PageDialog::accept 和 closeEvent 均经 handleClose → PageContainer::prepareToClose → saveAll 遍历所有页面 apply；JavaPage::apply → JavaSettingsWidget::saveSettings 在全局模式无条件写入 MinMemAlloc/MaxMemAlloc，不检查页面是否访问过或值是否改过。Setting::set 比较原始存储值，缺键与默认4096不相等，因此写入INI。故仅打开普通设置再点确定或窗口X，就能固化4096，无需打开Java页或手动改内存；取消按钮走reject，不是这一保存路径。现有 NiijimaLauncher-4.log 的14.502秒记录 Paged dialog close requested/approved、代理页应用及14.509秒保存全局配置，佐证这条批量保存路径已执行；日志未逐键记录，不能断言这是首次写入。自动Java跳过向导不走validatePage；SettingsObject::reload虽会set(get())，其现有调用在实例reloadSettings，内存OverrideSetting只写实例，不解释全局4096。当前配置不区分“默认值被顺带保存”和“用户主动选定”，不能仅凭数值4096自动迁移。此次仅核查并补充交接，未改配置/源码、未构建。
+- **2026-10-30 原版来源核对**：git blame 确认 JavaSettingsWidget 全局内存无条件保存来自 1b4b36df33（2025-01-26，TheKodeToad），PageContainer::saveAll 批量应用机制可追溯至2018年MultiMC历史，当前循环形式由4463c21c98整理；这两文件无本地修改。因此固定内存配置及未改值随设置保存是继承行为，不是新岛跳过向导或此次曲线修改引入。将其称为缺少自动/手动区分更准确；没有证据称上游承认它是bug。
+- 可见PowerShell仅构建LauncherTests目标及所需Launcher_logic，23:38完成；NiijimaLocalTest通过（含内存锚点/中点、单调性及上限、低内存边界、测试key存在性和原本本地下载校验，QtTest共6项含初始化/收尾）。git diff --check通过。未重建/替换启动器EXE、未实际展示新警告或游戏复测、未提交。运行目录仍为此前04:38 EXE。
+
+
+## 2026-10-30 控制台按钮工业斜纹与自动内存能力核查
+- **23:07预览修正**：用户指出上一版白字填充存在异常；此前“复看清晰”不足以作为验收。本次将字形本体从QPainterPath填充改回原有drawText，仅以路径绘制外围深色描边，独立预览编译及实际尺寸检查通过，白色笔画完整；三个状态仍为221×81。完整EXE未重建。具体路径填充异常的内部原因未进一步定位。
+- 内存默认规则准确表述：总内存低于6144 MiB时默认最大堆为总内存/1.5（转换为整数MiB）；达到6144 MiB时固定4096 MiB。不是多个离散档位，也不是按可用内存计算；保存过的配置仍优先。
+
+- 用户要求将游戏运行态的“打开控制台”按钮改为黄黑斜纹。HomePrimaryButton 已用 QPainter 绘制静态45度条纹及白字深色描边，沿用原点击、运行状态和固定尺寸；移除旧运行态纯色样式。此前04:39低饱和橙色记录为历史，本条仅取代源码样式，现有EXE仍是旧样式。
+- 从当前源码提取按钮类进行独立Qt离屏预览，编译成功，三种状态均221×81；预览发现描边盖字后改为先描边再填字，复看清晰。预览位于独立工作目录 prism-build/button-stripes-preview.png。未重建完整启动器、未替换EXE、未进行实际GUI交互、未提交。
+- 当前Prism的MinMemAlloc/MaxMemAlloc是可配置的固定值，实例可通过OverrideMemory覆盖全局；defaultMaxJvmMem只提供按总内存选择的默认值。EnsureAvailableMemory在启动时读取当前可用内存，仅提示或中止，不自动调整Xmx；MinecraftInstance直接将设置转成-Xms/-Xmx。当前没有按每次启动时空闲内存动态分配的开关。
+- 用户提问PCL类似自动分配是否可行；现有HardwareInfo::availableRamMiB可复用。仅讨论可实现性，尚未确定比例、上限、默认启用范围或低内存策略，未实现也未新增待办；不把用户“大概80%”作为精确需求或已核实的PCL算法。
+
+
+## 2026-10-30 22:52 测试实例 Java 堆耗尽（只读诊断）
+
+- 实际运行实例在 C:/Users/AshBill/AppData/Roaming/NiijimaLauncher/instances/新岛铁道/minecraft，并非此前建议的独立 profile；本轮未更改配置或重启游戏。
+- 启动器日志 NiijimaLauncher-0.log 确认参数为 -Xms512m、-Xmx4096m；全局 MaxMemAlloc=4096，实例 OverrideMemory=false。SysInfo.cpp 的 defaultMaxJvmMem 在物理内存至少 6 GiB 时默认返回 4096 MiB，未按本整合包需求提高。
+- latest.log 在22:51:32进入世界，22:52:54首次报告 OutOfMemoryError: Java heap space；失败栈为 FTB Chunks 2001.3.8 的 MapRegionData.write 创建 BufferedImage / DataBufferInt。该栈只确认最终分配失败点，不能证明 FTB 内存泄漏或炼药锅功能致错；尚无堆转储或占用采样。22:52:59记录所有维度保存完成，不等同逐项存档验收。
+- 诊断时系统约64 GiB内存、约53 GiB可用，但游戏Java进程已退出，此数值不是报错瞬间统计。优先判断4 GiB上限不足；建议此机器先以8 GiB上限复测相同场景，尚未应用或验证。未调整通用默认分配策略，未新增待办。
+
+
 ## 2026-10-30 休息前收尾
 
 用户要求停止开发、保存工作并同步 Git。新发现的首页缺少手动最小化按钮尚未修复；实际启动／Java 安装／窗口切换验证和正式交付物收尾统一登记到[整合包总 todo](../../niijima-railways-modpack/agent/todo-list.md#新岛启动器收尾与下次测试2026-10-30)，本项目不另建平行待办。用户随后要求记录“整合包游戏默认最大化窗口启动”，也在总表中，尚未改配置。

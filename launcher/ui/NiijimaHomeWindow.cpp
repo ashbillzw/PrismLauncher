@@ -191,7 +191,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QPushButton:hover { background: #ffe3b0; border-color: #b46d06; }
         QPushButton:pressed { background: #ffd082; }
         QPushButton:disabled { color: #9d8e78; border-color: #d7c6ae; background: #eee0cc; }
-        QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
+        QPushButton#minimize, QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
+        QPushButton#minimize:hover { background: rgba(255, 255, 255, 35); }
+        QPushButton#minimize:pressed { background: rgba(255, 255, 255, 60); }
         QPushButton#close:hover { background: #c42b1c; color: white; }
         QProgressBar { border: 0; background: #f9dca8; color: #452800; text-align: center; font-size: 12px; }
         QProgressBar::chunk { background: #ecb354; }
@@ -222,6 +224,12 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     title->setAttribute(Qt::WA_TransparentForMouseEvents);
     titleLayout->addWidget(title);
     titleLayout->addStretch();
+    auto* minimize = new QPushButton(QString::fromUtf8("−"), titleBar);
+    minimize->setObjectName("minimize");
+    minimize->setAccessibleName(QStringLiteral("最小化"));
+    minimize->setFixedSize(62, kTitleBarHeight);
+    connect(minimize, &QPushButton::clicked, this, &QWidget::showMinimized);
+    titleLayout->addWidget(minimize);
     auto* close = new QPushButton(QString::fromUtf8("×"), titleBar);
     close->setObjectName("close");
     close->setAccessibleName(QStringLiteral("关闭"));

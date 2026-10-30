@@ -35,6 +35,9 @@
 
 #include "IconUtils.h"
 
+#include <QDir>
+#include <QFile>
+#include <QTextStream>
 #include <QDirListing>
 #include <QFileInfo>
 
@@ -49,6 +52,59 @@ QString findBestIconIn(const QString& folder, const QString& iconKey)
         if ((fileInfo.completeBaseName() == iconKey || fileInfo.fileName() == iconKey) && isIconSuffix(fileInfo.suffix())) {
             return fileInfo.absoluteFilePath();
         }
+    }
+    return {};
+}
+
+namespace {
+QString findPclIcon(const QString& gameRoot)
+{
+    QFile config(QDir(gameRoot).filePath("PCL/Setup.ini"));
+    if (!config.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    QTextStream input(&config);
+    QString logo;
+    bool custom = false;
+    while (!input.atEnd()) {
+        const auto line = input.readLine().trimmed();
+        const auto separator = line.indexOf(':');
+        if (separator < 0)
+            continue;
+        const auto key = line.left(separator).trimmed();
+        const auto value = line.mid(separator + 1).trimmed();
+        if (key == "Logo")
+            logo = value;
+        else if (key == "LogoCustom")
+            custom = value.compare("True", Qt::CaseInsensitive) == 0;
+    }
+    logo.replace('\\', '/');
+    // Imported archives may only refer to their own files, not host paths or URLs.
+    if (!custom || logo.isEmpty() || QDir::isAbsolutePath(logo) || logo.contains(':'))
+        return {};
+    const QFileInfo image(QDir(gameRoot).filePath(logo));
+    const auto canonical = image.canonicalFilePath();
+    const auto relative = QDir(QFileInfo(gameRoot).canonicalFilePath()).relativeFilePath(canonical);
+    if (!image.isFile() || canonical.isEmpty() || relative == ".." || relative.startsWith("../") ||
+        QDir::isAbsolutePath(relative) || !isIconSuffix(image.suffix().toLower()))
+        return {};
+    return canonical;
+}
+}  // namespace
+
+QString findPackIcon(const QString& root, const QString& iconKey)
+{
+    auto path = findBestIconIn(root, iconKey);
+    if (path.isEmpty())
+        path = findBestIconIn(root, "icon.png");
+    if (path.isEmpty())
+        path = findBestIconIn(QDir(root).filePath("overrides"), "icon.png");
+    if (!path.isEmpty())
+        return path;
+    // Client overrides take precedence over common overrides in a mrpack.
+    for (const auto& folder : {QDir(root).filePath("client-overrides"), QDir(root).filePath("overrides"), root}) {
+        path = findPclIcon(folder);
+        if (!path.isEmpty())
+            return path;
     }
     return {};
 }

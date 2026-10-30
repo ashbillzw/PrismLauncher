@@ -38,6 +38,7 @@
 
 #include "Application.h"
 #include "FileSystem.h"
+#include "Json.h"
 #include "NullInstance.h"
 
 #include "QObjectPtr.h"
@@ -266,13 +267,7 @@ namespace {
 
 bool installIcon(const QString& root, const QString& instIconKey)
 {
-    auto importIconPath = IconUtils::findBestIconIn(root, instIconKey);
-    if (importIconPath.isNull() || !QFile::exists(importIconPath)) {
-        importIconPath = IconUtils::findBestIconIn(root, "icon.png");
-    }
-    if (importIconPath.isNull() || !QFile::exists(importIconPath)) {
-        importIconPath = IconUtils::findBestIconIn(FS::PathCombine(root, "overrides"), "icon.png");
-    }
+    const auto importIconPath = IconUtils::findPackIcon(root, instIconKey);
     if (!importIconPath.isNull() && QFile::exists(importIconPath)) {
         // import icon
         auto* iconList = APPLICATION->icons();
@@ -386,6 +381,21 @@ void InstanceImportTask::processMultiMC()
 
 void InstanceImportTask::processModrinth()
 {
+    // The normal import dialog supplies a name; the dedicated home imports directly.
+    if (modifiedName().isEmpty()) {
+        const auto manifest = Json::requireObject(FS::PathCombine(m_stagingPath, "modrinth.index.json"), "modrinth.index.json");
+        if (!manifest) {
+            emitFailed(manifest.error());
+            return;
+        }
+        const auto packName = Json::requireString(*manifest, "name", "modrinth.index.json");
+        if (!packName) {
+            emitFailed(packName.error());
+            return;
+        }
+        setOriginalName(*packName, manifest->value("versionId").toString());
+        setName(*packName);
+    }
     shared_qobject_ptr<ModrinthCreationTask> instCreationTask = nullptr;
     if (!m_extraInfo.isEmpty()) {
         auto packIdIt = m_extraInfo.constFind("pack_id");

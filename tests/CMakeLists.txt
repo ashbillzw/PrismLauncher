@@ -17,6 +17,7 @@ set(TEST_SOURCES
     ParseUtils_test.cpp
     Task_test.cpp
     INIFile_test.cpp
+    IconUtils_test.cpp
     JavaVersion_test.cpp
     Packwiz_test.cpp
     Index_test.cpp

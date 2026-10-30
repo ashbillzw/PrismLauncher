@@ -625,7 +625,7 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
         return;
     // A configurable URL is not automatically a trusted distribution source.
     auto* importer = new InstanceImportTask(url, false, this);
-    importer->setName(QStringLiteral("新岛铁道"));
+    importer->setIcon(QStringLiteral("default"));
     importer->setGroup(QStringLiteral("新岛铁道"));
     m_import = importer;
     m_committedId.clear();

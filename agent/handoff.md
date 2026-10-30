@@ -1,5 +1,31 @@
 # PrismLauncher 交接
 
+## 2026-10-31 00:40 图标/名称及自定义警告版已交付
+
+- 用户要求把可打包、编译、提交的当前工作完成。Release编译成功，CTest IconUtils、NiijimaPackIndex、NiijimaLocalTest三组全部通过；涵盖原生/PCL图标优先级和路径约束、版本发布索引、自定义警告字符串、自动内存策略等。未实测GUI新导入或游戏启动。
+- 用户关闭旧启动器后已安装至install-niijima/niijima-launcher.exe，41585152字节，文件时间2026-10-31 00:38:29 +08:00；SHA256=B68183CE060BE39513915037E2855ED4589A5A6FA4B33C8D177B38A779BDCFC8，与构建EXE一致。现已包含完整包名导入、常规/PCL图标查找、内存较少措辞及自定义测试正文。测试JSON保留pack-test.zip路径，testWarning为“这是一条测试警告。”。没有重新制作安装器。
+- 整合包已重新运行build-test.bat和build.bat，测试包为1.6.test0003（589359541字节），普通包仍1.6.0（130961654字节），均含三处Logo。测试编号只在打包成功后递增，本机序号为3；本地JSON直读pack-test.zip，不需要发布ID。正式发布仍需上传包并手动维护packs/latest.json数字ID/version/file；本轮未操作服务器。现有已安装实例不会自动升级或自动改名/换图，要验证新版导入需导入新的测试包，不删除已有实例。
+- 代码提交：6e51ff3af（自定义警告文本）、39e332f61（包名与图标导入）；整合包提交cdf3a9d（图标副本及打包交接）。本文件及测试说明另行提交。TrainResync仓库干净，本轮未无故重建。未push。
+- 构建、测试、安装日志及旧EXE备份位于仓库外C:/mydata/Agents/Codex-CreateTrainResync/prism-build/，本轮前缀icons-warning-20261031、pack-icons-20261031；旧EXE为niijima-launcher-before-icons-warning-20261031.exe。首次包构建因PS7模块路径污染WinPS5失败，调整本次进程模块路径后成功；EXE安装一次因shell无cmake PATH未执行，改用构建缓存中的CMake绝对路径成功。未重复编译。
+- **下方“源码更新未构建/测试未运行/EXE仍不含修复”为历史状态，以上交付结果取代。** 编译在本轮提交前进行，内嵌Git版本可能滞后，不能据此判断功能未编入。
+## 2026-10-31 实例名称和图标导入已修源码（尚未构建）
+
+- 用户要求修复Prism未读取PCL图标及首页漏设默认图标key。NiijimaHomeWindow::startImport现调用setIcon("default")，恢复原生图标扫描；同时去掉写死的setName("新岛铁道")。直接导入缺少名称时，InstanceImportTask::processModrinth通过既有Json接口读取索引name和versionId，使用完整name作为实例显示名，避免删掉硬编码后导入空名；已有用户指定名称不覆盖。
+- 图标查找抽到IconUtils::findPackIcon，保留原生优先级：指定key→根icon.png→overrides/icon.png；未找到时再依次读取client-overrides、overrides、根目录中的PCL/Setup.ini。LogoCustom:True时使用Logo字段配置的相对文件路径，兼容反斜杠和CRLF；只允许引用对应层内实际存在且支持扩展名的图片，不读取包外绝对路径/URL/越界相对路径。图标安装仍复用Prism原有注册入口，不新增注册机制。
+- 新增IconUtils回归测试源码并接入LauncherTests，覆盖原生图标优先级、PCL配置路径、关闭自定义/缺失文件及路径越界。静态调用链审阅及git diff --check通过；按既有迭代约定尚未编译/运行新增测试、未更换测试EXE、未提交。修复作用于后续导入；现有实例的name/iconKey尚未变更。整合包仓库先前新增的两份icon.png仍保留，PCL原图保留。
+- **下文“实例列表名称与图标诊断（未修复）”是历史状态，源码修复以本节为准；00:06:57 EXE尚不包含本节和自定义测试正文修改。**
+## 2026-10-31 实例列表名称与图标诊断（未修复）
+- **来源与格式补充（2026-10-31）**：git blame定位硬编码setName来自4cbef888e1（2026-10-29首次首页实现，agent作者）；提交说明和方案没有记录用户要求固定实例名，不能编造当时动机，也不是Prism导入必需。Modrinth官方mrpack规范没有定义包图标字段/路径：https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack 。当前Prism源码已有根icon.png或overrides/icon.png的导入约定，PCL/Logo.png+Setup.ini是PCL自身配置，不是通用标准。用户表示没有通用标准时可沿用PCL；本轮仅解释，未实现图标后备查找或名称修复。
+
+- 已安装 `Roaming/NiijimaLauncher/instances/新岛铁道/mrpack/modrinth.index.json` 的name为“新岛铁道 v1.6.test0002”，versionId为“1.6.test0002”；版本元数据没有丢失。instance.cfg却为name=新岛铁道、iconKey空。原因是NiijimaHomeWindow::startImport调用setName("新岛铁道")覆盖包名，列表读取实例名，而首页版本行另外读取索引versionId。
+- 包内overrides/PCL/Setup.ini明确Logo:PCL\Logo.png、LogoCustom:True；Logo.png仍存在，且已导入实例minecraft/PCL/Logo.png（21973字节）。用户记忆中的PCL自定义图标配置属实；Prism的InstanceImportTask::installIcon只查找指定key、根icon.png、overrides/icon.png，不解析PCL配置。
+- 另有首页接线遗漏：InstanceTask::m_instIcon默认空QString，startImport未调用setIcon("default")；processModrinth仅当key恰为default时自动查找包内图标，因此当前连原生查找也未执行，空key最终写入实例。仅添加icon.png仍不足，需同时修正该入口。本轮仅诊断及记录，未改安装逻辑、包或现有实例，不新增待办条目，未构建/提交。
+## 2026-10-31 测试警告支持自定义正文（源码更新，尚未重新构建）
+
+`testWarning` 现支持字符串作为测试弹窗正文，例如 `"testWarning": "这是一条测试警告。"`。本机测试JSON已改为该句，与实际低内存提示区分。实际低内存提示按用户意见改为“当前电脑内存较少（小于16GB），游戏可能不能正确运行。”。
+
+兼容既有键存在语义：删除键关闭强制测试；true/false/null或空字符串保留默认正文；非空字符串原样显示，支持JSON换行。新增解析回归用例，未编译执行。本轮未构建/更新EXE、未提交；00:06:57的测试EXE仍只识别键存在，尚不会显示自定义正文。下方强制警告固定使用默认正文的记录为历史行为，待下一次构建交付后生效。
+
 ## 2026-10-31 自动内存与警告测试版已交付
 
 - 用户明确要求编译、更新测试EXE并分类提交。Release完整构建成功；NiijimaLocalTest回归通过（QtTest 7项含初始化/收尾，0失败），覆盖曲线边界、自动忽略旧4096、手动恢复策略、低内存阈值、testWarning键存在语义和本地下载校验。未运行无关测试、未实测游戏或弹窗UI。

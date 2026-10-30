@@ -1,5 +1,36 @@
 # PrismLauncher 交接
 
+## 2026-10-31 02:15 最大 pack-id 与单文件元数据版已交付
+
+本节替代下方 01:59/首页取消选择框章节的“源码未构建、未替换 EXE、测试未执行”状态；旧双文件、source、旧测试兼容方案仍为过时历史。
+
+- 首页无实例下拉框；扫描本地有效 token 和 pack-id，启动数值最大者。版本显示、启动与更新判断共用选择结果；不依赖显示名、旧偏好或在线版本映射。仅使用 niijima-pack.json 的 token 与 pack-id；不保存 source/重复 version，不读写 niijima-release.json，不兼容旧测试格式。Prism 原生 mmc-pack.json 保持不变。
+- Release 编译、部署成功；CTest IconUtils、NiijimaInstalledPacks、NiijimaPackIndex、NiijimaLocalTest 共 4 组通过。覆盖数字最大 ID、同 ID 稳定选择、非法 ID/删除实例、标记写入，以及既有更新状态、本地传输/索引、图标逻辑。未运行游戏、未自动创建实例、未做 GUI 验收。
+- 测试 EXE：C:/mydata/Repositories/PrismLauncher/install-niijima/niijima-launcher.exe，41,587,712 字节，2026-10-31 02:13:03 +08:00；SHA256 D630DA56A67A7F69463A0F7D4B18F85C8C8A86FDE5F4F6B2A3115AA75F038FA1，与 Release 产物一致。原测试 JSON 的 packs/mirror/testWarning 保留。
+- 安装器：build-ashbill/dist/NiijimaLauncher-Setup.exe，31,944,682 字节；交付副本 C:/mydata/Agents/Codex-CreateTrainResync/本地资源/启动器安装器/2026-10-31/NiijimaLauncher-Setup.exe。两者 SHA256 均为 6FD8D8ED6946C671398B173B764E1C684E2C0D9771136367FF807E708623305C；45 项 payload 不含测试 JSON、账号或实例。安装器未执行、未签名、未上传。
+- 整合包内容未改，本轮不重复运行 build.bat/build-test.bat；仍用已交付 test0004、pack-id 3，未递增 test 编号或发布 ID。TrainResync 无改动，不重复编译。
+- 可见终端使用 tools/niijima/run_visible_build.ps1；任务完成 15 秒关闭，按任意键进入交互提示符保留。启动不能加 -NoExit：首次尝试虽倒计时但仍回到提示符，已纠正。修正后独立可见检查窗口及实际安装器打包进程均自动退出；按键保留分支尚未实际输入验证。用户未授权清理既有窗口，本轮未操作/关闭旧窗口。
+- 首次构建被 WinPS5 对 native stderr 的 Stop 处理打断，改为 cmd 合并输出后再传给 Tee-Object，仍检查退出码；第二次编译成功，无降低编译警告级别。临时打包脚本中文路径因 UTF-8 无 BOM 被 WinPS5 误读，已改为 UTF-8 BOM，并将成品复制到正确交付目录，哈希核对通过；未因此重新编译。
+- 构建、测试、安装及打包日志/旧产物备份位于仓库外 prism-build/，本轮前缀 pack-selection-20261031。新功能、构建工具/规则与交付文档分别提交；不 push。构建早于提交，内嵌 Git HEAD 可能滞后，不为此重复构建。
+
+## 2026-10-31 01:59 最终简化：单文件pack-id，不兼容旧测试格式（源码未构建）
+
+- 用户随后纠正：本地测试阶段无需旧包/旧字段兼容；不需要保存source；自定义两个JSON应合并。**本节替代紧随其后的“旧id兼容/保持两个JSON/版本映射/首选实例平局”等本轮早期方案，历史不删除。**
+- 只使用实例根niijima-pack.json：`{"token":114514,"pack-id":"3"}`。pack-id按十进制字符串完整保存quint64；最新包版本文字从mrpack/modrinth.index.json读取，不在自定义JSON再存version/source。安装完成后QSaveFile原子写pack-id到原token标记文件；写失败走已有安装失败状态，不冒充已完成首页登记。不生成/读取niijima-release.json，不识别旧id，不做迁移或索引版本文字推断。未登记pack-id的旧测试实例不参加首页候选。
+- InstalledPacks扫描全部Prism实例，要求instance.cfg存在、token正确及pack-id为有效正整数，选数值最大者；同pack-id按实例目录ID稳定排序。不使用旧NiijimaInstanceIds/NiijimaPreferredInstance设置，两者注册与读写已删除。首页QComboBox/布局行/样式已删，版本文字与按钮共用选中实例，点击前重查。所有首页新安装统一通过发布索引确定pack-id，旧NiijimaPackUrl绕过索引的试验入口已删；普通Prism的手工ZIP导入功能不变。
+- 新回归源码只覆盖当前格式：离线数字最大ID、不靠显示名称、排除非新岛标记、平局稳定/实例删除、非法ID、只写token+pack-id；旧兼容测试已撤换。静态调用链、残留检索、git diff --check通过；尚未编译或执行这些新增用例、未替换EXE、未提交。01:29测试EXE仍有旧下拉框/双文件逻辑，需下次明确构建后才生效。
+- 用户追问的mmc-pack.json为Prism的PackProfile原生组件清单，记录Minecraft/Forge/LWJGL版本；Prism读取它进行依赖与启动配置，Minecraft游戏不直接读取。该文件与自定义token/pack-id元数据职责不同，本轮不合并、不改动。
+- 原source字段只是正式请求URL，LocalTestNetwork当时仍将它映射到本地文件，并不表示测试ZIP走网络；它是agent额外记录，本轮按用户意见移除。实例元数据一次性本地整理在校验前发现test0004目录已不存在；随后instances目录列举为空，故未备份/改写/删除任何实例文件，不进行自动恢复或创建实例。
+- 设计偏好已写本机及两仓库规则；具体源码/文档改动留在工作区。本轮不编译/提交，未给新产物分配pack-id，不修改已有打包索引ID3。
+
+## 2026-10-31 首页取消选择框，自动选择最大pack-id（源码未构建）
+
+- 用户反馈整行实例选择框过大且挤坏布局，明确本次不制作替代下拉框：首页根本不需要实例选择。已删除QComboBox、独立布局行、对应样式和下拉状态；不改变窗口原有960×600初始尺寸。相关设计偏好已同步本机AGENTS与两个仓库agent/AGENTS。
+- 用户将latest.json数字发布ID统一称为**pack-id**，仍与testNNNN及Prism实例目录ID独立。当前实际test0004实例根niijima-release.json已保存旧字段id:"3"，不是没有保存。沿用此文件，不将同一ID重复写入token文件；后续新安装写pack-id字符串，读取兼容旧id。niijima-pack.json中的token:114514继续用于识别新岛包。未改用户实际实例文件。
+- 新InstalledPacks选择逻辑扫描Prism实例列表全部实例，通过token标记识别（无标记的早期首页登记实例兼容），不靠显示名称匹配。离线直接读取有效receipt的pack-id，取最大值；只有同pack-id平局才沿用原偏好，否则以实例ID稳定排序。旧收据version与实际manifest不符时不采用陈旧ID；无收据时可用在线索引唯一版本映射，未知记0。不依赖网络请求成功才能识别本地最高pack-id。
+- 版本标签、启动/控制台/更新状态和点击启动共用m_selectedInstance/m_selectedPackId；刷新和点击前重新选择，原PreferredInstance不再优先于更大pack-id。原生Prism仍可管理/启动其他实例；首页不新增选择UI，不删除旧实例。
+- 新增NiijimaInstalledPacks回归源码：离线最大ID胜过旧偏好与版本文字、token排除同名假包、旧id兼容、同ID平局、陈旧receipt、旧实例无标记及删除实例。静态调用链和git diff --check通过；**本轮未编译/运行新增测试、未替换EXE、未提交**，已交付01:29 EXE仍有旧选择框。下方“已构建”仅指本节之前功能。
+
 ## 2026-10-31 01:31 首页更新版已编译、打包交付
 
 - 用户要求全部编译/打包/分类提交。Release构建成功，CTest IconUtils、NiijimaPackIndex、NiijimaLocalTest共3组全部通过，覆盖首页超时/迟到/旧回调、发布ID不回退及共用本地索引/ZIP传输；GUI更新按钮、实际新实例安装与旧游戏同时运行尚待用户测试。首次编译因局部data遮蔽QWidget::data的C4458警告被/WX拒绝，改名receiptData后增量构建成功，没有降低警告级别。

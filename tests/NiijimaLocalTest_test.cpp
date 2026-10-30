@@ -77,6 +77,18 @@ private slots:
         }
     }
 
+    void warningEmptyTextIsDisabled()
+    {
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("config.json");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("{\"testWarning\":\"\"}");
+        file.close();
+        const auto config = Niijima::LocalTest::load(path);
+        QVERIFY(!config.testWarning);
+        QVERIFY(config.testWarningText.isEmpty());
+    }
     void warningCustomText()
     {
         QTemporaryDir temporary;

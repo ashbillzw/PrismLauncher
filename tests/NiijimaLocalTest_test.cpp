@@ -10,6 +10,7 @@
 #include <QNetworkRequest>
 
 #include "niijima/LocalTest.h"
+#include "niijima/PackIndex.h"
 #include "niijima/MemoryPolicy.h"
 #include "net/ChecksumValidator.h"
 #include "net/FileSink.h"
@@ -111,18 +112,19 @@ private slots:
         QVERIFY(root.mkpath("mirror/meta/v1"));
         QVERIFY(root.mkpath("mirror/assets"));
         QVERIFY(root.mkpath("mirror/files"));
-        for (const auto& name : { "pack.zip", "mirror/meta/v1/index.json", "mirror/files/test.bin" }) {
+        QVERIFY(root.mkpath("packs"));
+        for (const auto& name : { "packs/pack.zip", "packs/latest.json", "mirror/meta/v1/index.json", "mirror/files/test.bin" }) {
             QFile file(root.filePath(name));
             QVERIFY(file.open(QIODevice::WriteOnly));
             file.write("test payload");
         }
         QFile configFile(root.filePath("config.json"));
         QVERIFY(configFile.open(QIODevice::WriteOnly));
-        configFile.write(QJsonDocument(QJsonObject{ { "pack", "pack.zip" }, { "mirror", "mirror" } }).toJson());
+        configFile.write(QJsonDocument(QJsonObject{ { "packs", "packs" }, { "mirror", "mirror" } }).toJson());
         configFile.close();
         const auto config = Niijima::LocalTest::load(configFile.fileName());
         QVERIFY2(config.error.isEmpty(), qPrintable(config.error));
-        QCOMPARE(config.pack, root.filePath("pack.zip"));
+        QCOMPARE(config.packs, root.filePath("packs"));
         const QUrl url(Niijima::distributionRoot() + "niijima-mirror/files/test.bin");
         QVERIFY(config.resolve(url).isLocalFile());
         const QUrl unrelated("https://example.org/file");
@@ -130,6 +132,23 @@ private slots:
         QCOMPARE(Niijima::LocalTest().resolve(url), url);
 
         Niijima::LocalTestNetwork network(config);
+        const QUrl indexUrl(Niijima::distributionRoot() + "packs/latest.json");
+        QFile index(root.filePath("packs/latest.json"));
+        QVERIFY(index.open(QIODevice::WriteOnly));
+        index.write(R"({"21":{"version":"1.6.test0003","file":"pack.zip"}})");
+        index.close();
+        const std::unique_ptr<QNetworkReply> indexReply(network.get(QNetworkRequest(indexUrl)));
+        QTRY_VERIFY_WITH_TIMEOUT(indexReply->isFinished(), 5000);
+        QCOMPARE(indexReply->error(), QNetworkReply::NoError);
+        // Exactly the production parser, with the production URL for relative ZIP resolution.
+        const auto release = Niijima::parsePackIndex(indexReply->readAll(), indexUrl);
+        QVERIFY(release.has_value());
+        QCOMPARE(release->id, quint64(21));
+        QCOMPARE(release->packUrl, QUrl(Niijima::distributionRoot() + "packs/pack.zip"));
+        const std::unique_ptr<QNetworkReply> packReply(network.get(QNetworkRequest(release->packUrl)));
+        QTRY_VERIFY_WITH_TIMEOUT(packReply->isFinished(), 5000);
+        QCOMPARE(packReply->error(), QNetworkReply::NoError);
+        QCOMPARE(packReply->readAll(), QByteArray("test payload"));
         for (const bool validHash : { true, false }) {
             const auto target = root.filePath(validHash ? "good.bin" : "bad.bin");
             QNetworkRequest request(url);
@@ -151,6 +170,13 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(missing->isFinished(), 5000);
         QVERIFY(missing->error() != QNetworkReply::NoError);
         QVERIFY(missing->url().isLocalFile());
+        const std::unique_ptr<QNetworkReply> missingPack(network.get(QNetworkRequest(QUrl(Niijima::distributionRoot() + "packs/missing.zip"))));
+        QTRY_VERIFY_WITH_TIMEOUT(missingPack->isFinished(), 5000);
+        QVERIFY(missingPack->error() != QNetworkReply::NoError);
+        QVERIFY(missingPack->url().isLocalFile());
+        auto invalid = config;
+        invalid.error = "invalid local configuration";
+        QVERIFY(invalid.resolve(indexUrl).isLocalFile());
     }
 };
 

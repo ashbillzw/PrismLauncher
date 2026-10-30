@@ -46,6 +46,7 @@ class InstanceImportTask : public InstanceTask {
     explicit InstanceImportTask(QUrl sourceUrl, bool trustedSource, QWidget* parent = nullptr, QMap<QString, QString> extraInfo = {});
     ~InstanceImportTask() override = default;
     bool abort() override;
+    void setCreateNewInstance(bool createNew) { m_createNewInstance = createNew; }
 
    signals:
     void extractingPack();
@@ -68,6 +69,7 @@ class InstanceImportTask : public InstanceTask {
     void extractFinished();
 
    private: /* data */
+    bool m_createNewInstance = false;
     QUrl m_sourceUrl;
     bool m_trustedSource;
     QString m_archivePath;

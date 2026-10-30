@@ -30,28 +30,34 @@ LocalTest LocalTest::load(const QString& filename)
     config.testWarning = object.contains("testWarning");
     config.testWarningText = object.value("testWarning").toString();
     const QDir directory = QFileInfo(filename).absoluteDir();
-    config.pack = directory.absoluteFilePath(object.value("pack").toString());
+    config.packs = directory.absoluteFilePath(object.value("packs").toString());
     config.mirror = directory.absoluteFilePath(object.value("mirror").toString());
-    if (!document.isObject() || object.value("pack").toString().isEmpty() || object.value("mirror").toString().isEmpty() ||
-        !QFileInfo(config.pack).isFile() || !QFileInfo(QDir(config.mirror).filePath("meta/v1/index.json")).isFile() ||
+    if (!document.isObject() || object.value("packs").toString().isEmpty() || object.value("mirror").toString().isEmpty() ||
+        !QFileInfo(QDir(config.packs).filePath("latest.json")).isFile() || !QFileInfo(QDir(config.mirror).filePath("meta/v1/index.json")).isFile() ||
         !QDir(config.mirror).exists("assets") || !QDir(config.mirror).exists("files")) {
-        config.error = QStringLiteral("本地测试配置无效，请检查 pack 文件和 mirror 目录：%1").arg(filename);
+        config.error = QStringLiteral("本地测试配置无效，请检查 packs/latest.json 和 mirror 目录：%1").arg(filename);
     }
     return config;
 }
 
 QUrl LocalTest::resolve(const QUrl& url) const
 {
-    if (!enabled || !error.isEmpty())
+    if (!enabled)
         return url;
-    const QUrl root(distributionRoot() + QStringLiteral("niijima-mirror/"));
+    const QUrl root(distributionRoot());
     if (url.scheme() != root.scheme() || url.authority() != root.authority() || !url.path().startsWith(root.path()))
         return url;
+    // An invalid local setup must fail locally, not silently contact the production distribution.
+    if (!error.isEmpty())
+        return QUrl(QStringLiteral("file:"));
     const QString relative = url.path().mid(root.path().size());
-    // File URLs retain the normal download/hash pipeline; missing files never fall back to HTTP.
     if (QDir::isAbsolutePath(relative) || relative.contains('\\') || relative.split('/').contains(".."))
         return QUrl(QStringLiteral("file:"));
-    return QUrl::fromLocalFile(QDir(mirror).absoluteFilePath(relative));
+    if (relative.startsWith("packs/"))
+        return QUrl::fromLocalFile(QDir(packs).absoluteFilePath(relative.mid(6)));
+    if (relative.startsWith("niijima-mirror/"))
+        return QUrl::fromLocalFile(QDir(mirror).absoluteFilePath(relative.mid(15)));
+    return url;
 }
 
 QNetworkReply* LocalTestNetwork::createRequest(Operation operation, const QNetworkRequest& request, QIODevice* outgoingData)

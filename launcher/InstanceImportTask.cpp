@@ -427,6 +427,7 @@ void InstanceImportTask::processModrinth()
         instCreationTask = makeShared<ModrinthCreationTask>(m_stagingPath, m_trustedSource, m_globalSettings, m_parent, packId);
     }
 
+    instCreationTask->setCreateNewInstance(m_createNewInstance);
     instCreationTask->setName(modifiedName());
     instCreationTask->setOriginalName(originalName(), version());
     // if the icon was specified by user, use that. otherwise pull icon from the pack

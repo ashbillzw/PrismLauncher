@@ -36,6 +36,7 @@ class ModrinthCreationTask final : public InstanceTask {
     ~ModrinthCreationTask() override;
 
     bool abort() override;
+    void setCreateNewInstance(bool createNew) { m_createNewInstance = createNew; }
 
     void createInstance();
     void executeTask() override;
@@ -54,6 +55,7 @@ class ModrinthCreationTask final : public InstanceTask {
    private:
     QWidget* m_parent = nullptr;
     bool m_trustedSource;
+    bool m_createNewInstance = false;
 
     QString m_minecraftVersion, m_fabricVersion, m_quiltVersion, m_forgeVersion, m_neoForgeVersion;
     QString m_managedId, m_managedVersionId, m_managedName;

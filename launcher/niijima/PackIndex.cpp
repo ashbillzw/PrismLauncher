@@ -114,6 +114,7 @@ PackIndexTask::PackIndexTask(const QUrl& indexUrl, QString requestedId, QObject*
 void PackIndexTask::executeTask()
 {
     m_release = {};
+    m_releaseIdsByVersion.clear();
     if (!validIndexUrl(m_indexUrl)) {
         emitFailed(QStringLiteral("版本索引地址无效；请检查 NiijimaPackIndexUrl。"));
         return;
@@ -149,6 +150,12 @@ void PackIndexTask::executeTask()
         if (!result) {
             emitFailed(result.error());
             return;
+        }
+        // Only unambiguous labels can identify pre-receipt imports.
+        const auto entries = QJsonDocument::fromJson(*response).object();
+        for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
+            const auto version = it.value().toObject().value("version").toString().trimmed();
+            m_releaseIdsByVersion[version] = m_releaseIdsByVersion.contains(version) ? 0 : it.key().toULongLong();
         }
         m_release = std::move(*result);
         emitSucceeded();

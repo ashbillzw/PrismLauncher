@@ -5,6 +5,8 @@
 #include <QPointer>
 #include <QWidget>
 #include "tasks/Task.h"
+#include "niijima/HomeUpdateState.h"
+class QShowEvent;
 class QUrl;
 class QLabel;
 class QPushButton;
@@ -20,11 +22,16 @@ class NiijimaHomeWindow : public QWidget {
     void isClosing();
 
    protected:
+    void showEvent(QShowEvent*) override;
     void paintEvent(QPaintEvent*) override;
     void mousePressEvent(QMouseEvent*) override;
     void closeEvent(QCloseEvent*) override;
 
    private:
+    void checkForUpdates();
+    void cancelUpdateCheck();
+    bool updateAvailable() const;
+    void saveReleaseReceipt(const Niijima::PackRelease& release, const QString& source);
     void refresh();
     void refreshPackVersion();
     void refreshPrimaryAction();
@@ -44,6 +51,10 @@ class NiijimaHomeWindow : public QWidget {
     QPushButton* m_cancel;
     QComboBox* m_instances;
     QProgressBar* m_progress;
+    Niijima::HomeUpdateState m_update;
+    QPointer<Task> m_checkTask;
+    QHash<QString, quint64> m_releaseIdsByVersion;
+    QString m_releaseSource;
     QPointer<Task> m_task;
     QPointer<InstanceTask> m_import;
     QString m_committedId;

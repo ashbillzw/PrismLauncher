@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "niijima/PackIndex.h"
+#include "niijima/HomeUpdateState.h"
 
 namespace {
 const QUrl indexUrl(QStringLiteral("https://example.org/%E5%88%9B%E4%B8%96/packs/latest.json"));
@@ -20,6 +21,51 @@ class NiijimaPackIndexTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void loadingTimeoutKeepsLateUpdate()
+    {
+        Niijima::HomeUpdateState state;
+        const auto request = state.begin();
+        QVERIFY(state.loading);
+        QVERIFY(!state.release);
+        state.timeout(request);
+        QVERIFY(!state.loading);
+        QVERIFY(!state.release);
+        const Niijima::PackRelease release{12, "1.6", QUrl("https://example.org/pack.zip")};
+        QVERIFY(state.complete(request, release));
+        QVERIFY(!state.loading);
+        QCOMPARE(state.release->id, quint64(12));
+    }
+
+    void completedAndStaleChecks()
+    {
+        Niijima::HomeUpdateState state;
+        const auto old = state.begin();
+        const auto current = state.begin();
+        state.timeout(old);
+        QVERIFY(state.loading);
+        const Niijima::PackRelease release{12, "1.6", QUrl("https://example.org/pack.zip")};
+        QVERIFY(!state.complete(old, release));
+        QVERIFY(!state.release);
+        QVERIFY(state.complete(current, release));
+        QVERIFY(!state.loading); // Fast success releases the gate before one second.
+        state.timeout(current);
+        QCOMPARE(state.release->id, quint64(12));
+    }
+
+    void releaseIdsNeverGoBackwards()
+    {
+        const Niijima::PackRelease production{12, "1.6.0", {}};
+        const Niijima::PackRelease test{11, "1.6.test9999", {}};
+        QVERIFY(Niijima::needsPackUpdate(production, 11));
+        QVERIFY(!Niijima::needsPackUpdate(test, 12));
+        QVERIFY(!Niijima::needsPackUpdate(production, 12));
+        QVERIFY(!Niijima::needsPackUpdate(production, 13));
+        QVERIFY(Niijima::needsPackUpdate(production, 0));
+        // A new release ID still wins when the display label stays unchanged.
+        const Niijima::PackRelease sameLabel{13, "1.6.0", {}};
+        QVERIFY(Niijima::needsPackUpdate(sameLabel, 12));
+    }
+
     void selectsNumericIdRatherThanVersionText()
     {
         const QByteArray data = R"({"2":{"version":"99.0","file":"older.zip"},"10":{"version":"1.6","file":"newer.zip"}})";

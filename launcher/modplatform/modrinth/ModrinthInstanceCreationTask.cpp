@@ -45,6 +45,10 @@ bool ModrinthCreationTask::abort()
 
 void ModrinthCreationTask::executeTask()
 {
+    if (m_createNewInstance) {
+        createInstance();
+        return;
+    }
     auto* instanceList = APPLICATION->instances();
 
     // FIXME: How to handle situations when there's more than one install already for a given modpack?

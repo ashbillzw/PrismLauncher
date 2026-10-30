@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "NiijimaHomeWindow.h"
 #include <QCloseEvent>
+#include <QShowEvent>
+#include <QSaveFile>
 #include <QComboBox>
 #include <QDir>
 #include <QFile>
@@ -325,6 +327,115 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     refresh();
 }
 
+namespace {
+QString installedPackVersion(const MinecraftInstance* instance)
+{
+    QFile manifest(QDir(instance->instanceRoot()).filePath("mrpack/modrinth.index.json"));
+    if (manifest.open(QIODevice::ReadOnly))
+        return QJsonDocument::fromJson(manifest.readAll()).object().value("versionId").toString().trimmed();
+    return {};
+}
+QUrl packIndexUrl()
+{
+    const auto setting = APPLICATION->settings()->getSetting("NiijimaPackIndexUrl");
+    auto value = setting->get().toString().trimmed();
+    return QUrl(value.isEmpty() ? setting->defValue().toString() : value);
+}
+} // namespace
+
+void NiijimaHomeWindow::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    if (!event->spontaneous())
+        checkForUpdates();
+}
+
+void NiijimaHomeWindow::cancelUpdateCheck()
+{
+    // Invalidate callbacks before abort(), which can emit finished synchronously.
+    ++m_update.generation;
+    m_update.loading = false;
+    if (m_checkTask) {
+        auto* task = m_checkTask.data();
+        m_checkTask = nullptr;
+        task->abort();
+    }
+}
+
+void NiijimaHomeWindow::checkForUpdates()
+{
+    if (m_task && m_task->isRunning())
+        return;
+    cancelUpdateCheck();
+    const auto generation = m_update.begin();
+    m_releaseIdsByVersion.clear();
+    m_releaseSource.clear();
+    refreshPrimaryAction();
+    QTimer::singleShot(1000, Qt::PreciseTimer, this, [this, generation] {
+        m_update.timeout(generation);
+        refreshPrimaryAction();
+    });
+    // A direct ZIP override has no release index; keep its explicit manual-download behavior.
+    if (!APPLICATION->settings()->get("NiijimaPackUrl").toString().trimmed().isEmpty())
+        return;
+    const auto url = packIndexUrl();
+    auto* task = new Niijima::PackIndexTask(url, APPLICATION->settings()->get("NiijimaPackVersionId").toString(), this);
+    m_checkTask = task;
+    connect(task, &Task::finished, this, [this, task, generation, url] {
+        if (m_checkTask == task)
+            m_checkTask = nullptr;
+        if (generation == m_update.generation) {
+            if (task->wasSuccessful()) {
+                m_releaseIdsByVersion = task->releaseIdsByVersion();
+                m_releaseSource = url.toString();
+                m_update.complete(generation, task->release());
+            } else {
+                // No popup or status copy for a background check. The one-second gate still expires.
+                qWarning() << "Niijima pack check failed:" << task->failReason();
+            }
+            refreshPrimaryAction();
+        }
+        task->deleteLater();
+    });
+    task->start();
+}
+
+bool NiijimaHomeWindow::updateAvailable() const
+{
+    const auto* instance = APPLICATION->instances()->getInstanceById(m_instances->currentData().toString());
+    if (!instance || !m_update.release)
+        return false;
+    const auto version = installedPackVersion(instance);
+    quint64 id = m_releaseIdsByVersion.value(version);
+    QFile receipt(QDir(instance->instanceRoot()).filePath("niijima-release.json"));
+    if (receipt.open(QIODevice::ReadOnly)) {
+        const auto object = QJsonDocument::fromJson(receipt.readAll()).object();
+        if (object.value("source").toString() == m_releaseSource && object.value("version").toString() == version) {
+            const auto savedId = object.value("id").toString().toULongLong();
+            if (savedId)
+                id = savedId;
+        }
+    }
+    return Niijima::needsPackUpdate(*m_update.release, id);
+}
+
+void NiijimaHomeWindow::saveReleaseReceipt(const Niijima::PackRelease& release, const QString& source)
+{
+    const auto* instance = APPLICATION->instances()->getInstanceById(m_committedId);
+    if (!instance)
+        return;
+    const auto version = installedPackVersion(instance);
+    if (version.isEmpty()) {
+        qWarning() << "Installed Niijima pack has no versionId; not recording a release ID";
+        return;
+    }
+    // Registry version is a display label; the receipt binds its numeric ID to the actual manifest.
+    QSaveFile receipt(QDir(instance->instanceRoot()).filePath("niijima-release.json"));
+    const auto receiptData = QJsonDocument(QJsonObject{{"id", QString::number(release.id)}, {"version", version}, {"source", source}}).toJson();
+    if (!receipt.open(QIODevice::WriteOnly) || receipt.write(receiptData) != receiptData.size() || !receipt.commit())
+        qWarning() << "Could not save Niijima release receipt:" << receipt.errorString();
+}
+
 void NiijimaHomeWindow::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
@@ -363,6 +474,7 @@ void NiijimaHomeWindow::closeEvent(QCloseEvent* e)
         e->ignore();
         return;
     }
+    cancelUpdateCheck();
     e->accept();
     emit isClosing();
 }
@@ -433,12 +545,16 @@ void NiijimaHomeWindow::refreshPrimaryAction()
         launching = m_loginInstance == instance->id() || (controller && !controller->isFinished());
         running = instance->isRunning() && task && task->pid() > 0;
     }
-    m_primary->setText(running ? QStringLiteral("打开控制台")
-                              : launching ? QStringLiteral("正在启动")
-                                          : instance ? QStringLiteral("启动游戏") : QStringLiteral("下载游戏"));
-    m_primary->setEnabled(!launching || running);
-    if (m_primary->property("running").toBool() != running) {
-        m_primary->setProperty("running", running);
+    const bool update = updateAvailable();
+    m_primary->setText(m_update.loading ? QStringLiteral("加载中")
+                                       : update ? QStringLiteral("更新游戏")
+                                                : running ? QStringLiteral("打开控制台")
+                                                          : launching ? QStringLiteral("正在启动")
+                                                                      : instance ? QStringLiteral("启动游戏") : QStringLiteral("下载游戏"));
+    m_primary->setEnabled(!m_update.loading && (update || !launching || running));
+    const bool console = running && !update && !m_update.loading;
+    if (m_primary->property("running").toBool() != console) {
+        m_primary->setProperty("running", console);
         m_primary->style()->unpolish(m_primary);
         m_primary->style()->polish(m_primary);
         m_primary->update();
@@ -517,8 +633,12 @@ void NiijimaHomeWindow::showDownloadError(const QString& message, const QString&
 
 void NiijimaHomeWindow::primaryAction()
 {
-    if (m_task && m_task->isRunning())
+    if ((m_task && m_task->isRunning()) || m_update.loading)
         return;
+    if (updateAvailable()) {
+        startImport(m_update.release->packUrl);
+        return;
+    }
     auto* settings = APPLICATION->settings();
     const auto id = settings->get("NiijimaPreferredInstance").toString();
     if (auto* inst = APPLICATION->instances()->getInstanceById(id)) {
@@ -546,12 +666,8 @@ void NiijimaHomeWindow::primaryAction()
             watchGameWindow(inst);
         return;
     }
-    const auto& local = APPLICATION->localTest();
-    if (local.enabled) {
-        if (!local.error.isEmpty())
-            showDownloadError(QStringLiteral("本地测试配置无效"), local.error);
-        else
-            startImport(QUrl::fromLocalFile(local.pack));
+    if (m_update.release) {
+        startImport(m_update.release->packUrl);
         return;
     }
     const auto validDownloadUrl = [](const QUrl& url) {
@@ -584,21 +700,22 @@ void NiijimaHomeWindow::primaryAction()
 
 void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& requestedId)
 {
+    cancelUpdateCheck();
     auto* task = new Niijima::PackIndexTask(indexUrl, requestedId, this);
     m_task = task;
     m_primary->setEnabled(false);
-    m_primary->setText(QStringLiteral("正在检查"));
+    m_primary->setText(QStringLiteral("加载中"));
     m_instances->hide();
     m_details->clear();
     m_details->hide();
-    m_status->setText(QStringLiteral("正在获取整合包版本…"));
-    m_status->show();
+    m_status->clear();
+    m_status->hide();
     m_progress->setRange(0, 0);
     m_progress->show();
     m_cancel->setText(QStringLiteral("取消"));
     m_cancel->show();
     connect(task, &Task::abortStatusChanged, m_cancel, &QWidget::setEnabled);
-    connect(task, &Task::finished, this, [this, task] {
+    connect(task, &Task::finished, this, [this, task, indexUrl] {
         const bool success = task->wasSuccessful();
         const bool cancelled = task->getState() == Task::State::AbortedByUser;
         const auto reason = task->failReason();
@@ -606,6 +723,9 @@ void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& 
         m_task = nullptr;
         task->deleteLater();
         if (success) {
+            m_releaseIdsByVersion = task->releaseIdsByVersion();
+            m_releaseSource = indexUrl.toString();
+            m_update.complete(m_update.generation, task->release());
             startImport(packUrl);
         } else if (cancelled) {
             refresh();
@@ -623,8 +743,12 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
 {
     if (m_task && m_task->isRunning())
         return;
+    cancelUpdateCheck();
+    const auto release = m_update.release && m_update.release->packUrl == url ? m_update.release : std::nullopt;
+    const auto source = m_releaseSource;
     // A configurable URL is not automatically a trusted distribution source.
     auto* importer = new InstanceImportTask(url, false, this);
+    importer->setCreateNewInstance(true);
     importer->setIcon(QStringLiteral("default"));
     importer->setGroup(QStringLiteral("新岛铁道"));
     m_import = importer;
@@ -662,7 +786,7 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     });
     connect(importer, &InstanceImportTask::extractedPack, this, [this] { m_progress->setFormat(QStringLiteral("%p%")); });
     connect(task, &Task::stepProgress, this, &NiijimaHomeWindow::updateTransferText);
-    connect(task, &Task::finished, this, [this, task] {
+    connect(task, &Task::finished, this, [this, task, release, source] {
         const bool success = task->wasSuccessful();
         const bool cancelled = task->getState() == Task::State::AbortedByUser;
         const auto reason = task->failReason();
@@ -671,6 +795,8 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
         m_transfers.clear();
         m_task = nullptr;
         m_import = nullptr;
+        if (success && release)
+            saveReleaseReceipt(*release, source);
         refresh();
         if (!success) {
             m_status->setText(cancelled ? QStringLiteral("已取消安装") : QStringLiteral("安装失败，可重试。"));

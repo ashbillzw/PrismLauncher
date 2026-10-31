@@ -1,5 +1,49 @@
 # PrismLauncher 交接
 
+> 2026-10-31 21:41提交交接：本页各次“未commit”描述保留为当时状态；用户现已要求按功能提交三个仓库，提交结果以Git历史为准。本机交付维持test0010/pack-id9、helper0.1.30、TrainResync1.6.0.m，等待用户测试；未push。
+
+## 2026-10-31 21:38 源码修正已构建并替换测试EXE
+
+下方“解压计数/取消按钮布局未编译”为历史状态，本轮cmake --build --preset niijima --config Release --parallel 4成功。测试EXE在用户退出程序后用cmake --install收集到install-niijima；新EXE41590272字节，SHA256=342CCDDFDF9A47B1232E9A2A900C36B19C1A477A127B9195DE80F87A6E56D431，和build-ashbill/Release产物一致。未操作GUI或实际验收。
+
+从无测试配置的独立runtime目录重打NiijimaLauncher-Setup.exe成功，31951965字节，交付副本在C:/mydata/Agents/Codex-CreateTrainResync/本地资源/启动器安装器/2026-10-31-cauldron-feedback；未安装或上传。可见构建使用既有最小化/15秒自动退出包装器。
+
+latest.json维护源与本地镜像新增pack-id9→1.6.test0010，含helper0.1.30和TrainResync1.6.0.m。独立ZIP已就位，旧版本保留。test0007实例仅手动替换两JAR保留测试世界，不能把其旧pack-id当作新包已导入；首页仍按最大已安装pack-id选择，再以latest.json提供更新。本轮三主仓库未commit/push。
+
+## 2026-10-31 21:20 本地测试包 pack-id 8
+
+latest.json维护源与本地镜像新增ID8→1.6.test0009，独立ZIP已就位，旧版保留。含TrainResync 1.6.0.m：所有环境按统一JSON开关，玩家包不带启用配置。下方ID7“仅专用服”规则已由此替代。整合包两种打包均成功；本轮未编译/替换启动器EXE，现有解压计数及取消按钮布局改动仍未构建。未commit/push。
+
+## 2026-10-31 21:09 本地测试包更新至 pack-id 7
+
+新测试包1.6.test0008含TrainResync 1.6.0.l（铁路保护默认关闭、仅专用服显式配置开启），客户端不带启用JSON。latest.json维护源与本地prism-local-test/packs副本新增ID7及对应独立ZIP，旧ID保留。本轮仅更新包索引和交接；解压计数、取消按钮布局修正仍未编译，测试EXE未替换。未上传或提交。
+
+## 2026-10-31 取消按钮布局调整（源码已改，未编译）
+
+用户要求取消按钮顶部与主按钮对齐、矮一点且不挤动版本文字。已把取消按钮和版本文字放进主按钮左侧同一个垂直列：取消居右上，版本居右下，中间stretch，整列高度取主按钮sizeHint并底部对齐，确保两按钮顶部一致；取消高度32px、水平内边距16px、圆角8px。保留隐藏时的布局占位，避免显示/隐藏改变列宽和高度；原先在横排插入取消而把版本往左推的行为移除。没有改按钮文案、点击取消逻辑或主按钮尺寸。
+
+静态布局及diff格式检查通过，未新增低收益测试、未使用computer use或实际GUI验证。尚未编译、替换EXE或提交；运行中的启动器仍是旧布局，下次构建应同时包含上轮解压计数修正。
+
+## 2026-10-31 解压计数显示超过总数（已定位，未改代码）
+
+> 20:29更新：用户批准后已将ExtractZipTask的collectFiles()改为collectFiles(false)，使总数包含目录，与逐条目计数一致。本次为一处参数修改，静态调用链及diff格式检查通过；未重编译或替换EXE，运行中的旧版本仍可能显示1930/1637。下文“未改代码”为诊断时的历史状态。
+
+用户截图为“解压中1930/1637”。test0007 ZIP中央目录定点计数为1637个文件、293个目录、1930个条目。ExtractZipTask::extractZip调用collectFiles()，默认onlyFiles=true，因此分母仅文件；parse回调对每个条目无条件递增，目录也进入分子。1930=1637+293，与截图精确对应。首页直接显示此进度，只是暴露了底层口径不一致；不能从截图认定解压失败或ZIP损坏。
+
+最小修正方向是ExtractZipTask使用collectFiles(false)，将总数统一为所有条目，匹配现有parse计数；不改解压顺序、并发或文件处理，不通过截断分子掩盖问题。本轮仅诊断，未改源码或重编译。读到的Roaming日志最新记录未覆盖截图这次完整导入，故不单凭计数问题宣称该次安装已成功。
+
+## 2026-10-31 20:21 本地测试包更新至 pack-id 6
+
+本轮未改启动器源码或EXE。TrainResync新世界判定修复版1.6.0.k已进入test0007，维护源tools/niijima/deploy/packs/latest.json与仓库外prism-local-test/packs/latest.json追加pack-id 6→1.6.test0007→新岛铁道 v1.6.test0007.zip；本地独立ZIP已复制，旧ID及ZIP保留。此前pack-id 5/test0006含有新世界误判的j版，当前测试请选择最新包。实际游戏验收由用户进行，未使用computer use、未上传；索引与交接改动尚未提交。
+
+## 2026-10-31 晚间同步与重新构建
+
+- 三仓库 fetch/pull --ff-only 均成功，无新提交需要拉取，开始时工作区干净。Prism develop、整合包 agent-dev-1.6、TrainResync main 均与 origin 对应分支一致。
+- Release 编译与运行文件收集成功，用户关闭启动器后已替换 install-niijima/niijima-launcher.exe（41,589,248 字节；20:09:59 +08:00；SHA256 72458C51DC226F3B4C120F7F74EAE348038A5E88D289FFCDDFB94AC926B4FEA1）。本轮没有源码改动，不重复运行此前已通过的 CTest；未启动 GUI 或游戏，未使用 computer use。
+- NSIS 安装器重新生成，包含此前的空字符串警告修复、最小化按钮及关闭按钮圆角；build-ashbill/dist/NiijimaLauncher-Setup.exe 为31,950,036字节，交付副本在 C:/mydata/Agents/Codex-CreateTrainResync/本地资源/启动器安装器/2026-10-31-evening/。两者SHA256均为0EEE1070295B1E267CA383B0C0F81DAC5A15503415B95274C3C49CAF4888A217。采用新建干净runtime收集，排除本地测试配置；未执行安装器或上传。下方旧安装器交付状态由本节替代。
+- 首次测试打包生成test0005/pack-id 4；随后用户要求把包内TrainResync由i替换为j并重打，最终为test0006/pack-id 5。两条新ID都保留，各自独立ZIP已复制到仓库外prism-local-test/packs；latest.json维护源与本地副本同步。ID永不回退，不修改现有游戏实例。普通包仍为1.6.0。
+- 构建窗口使用现有最小化与15秒自动关闭包装器；日志及备份在仓库外prism-build，前缀sync-build-20261031-evening、trainresync-j-20261031-evening。本轮发布索引与交接记录留为未提交改动，未push；与整合包JAR更新配套提交。
+
 ## 2026-10-31 收尾：关闭按钮圆角与 computer use 授权规则
 
 - 用户明确要求“未经我明确授权，不要使用 computer use”，已同步独立工作目录 AGENTS.md、启动器 agent/AGENTS.md 与整合包 agent/AGENTS.md 三份现用副本；包括初始化、读取应用/窗口、截图与输入操作，不能把开发/修复/编译/测试任务推断为 computer use 授权。冻结备份及只读第三方源码未改；TrainResync 没有单独 AGENTS.md 副本。本轮未调用 computer use。

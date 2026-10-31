@@ -38,7 +38,8 @@ auto ExtractZipTask::extractZip() -> Result<>
     QStringList extracted;
 
     qDebug() << "Extracting subdir" << m_subdirectory << "from" << m_input.getZipName() << "to" << target;
-    TRY(m_input.collectFiles())
+    // The extraction callback counts every archive entry, including directories.
+    TRY(m_input.collectFiles(false))
 
     if (m_input.getFiles().isEmpty()) {
         logWarning(tr("Extracting empty archives seems odd..."));

@@ -203,6 +203,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton { background: rgba(30, 36, 47, 155); border-color: rgba(255, 249, 238, 80); color: #fff9ee; }
         QWidget#homeBody QPushButton:hover { background: rgba(65, 73, 86, 190); border-color: rgba(255, 249, 238, 145); }
         QWidget#homeBody QPushButton:pressed { background: rgba(19, 26, 37, 210); }
+        QWidget#homeBody QPushButton#cancel { padding: 0 16px; border-radius: 8px; }
         QWidget#homeBody QPushButton#primary { background: #f39801; border-color: #ffbd52; color: #ffffff; font-size: 36px; font-weight: 700; letter-spacing: 11px; padding: 0; }
         QWidget#homeBody QPushButton#primary:hover { background: #ffad28; }
         QWidget#homeBody QPushButton#primary:pressed { background: #de8600; }
@@ -299,16 +300,30 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     m_packVersion->setStyleSheet("font-size: 14px; color: #aaaaaa;");
     m_packVersion->setAlignment(Qt::AlignRight | Qt::AlignBottom);
     m_packVersion->hide();
-    actions->addWidget(m_packVersion, 0, Qt::AlignBottom);
+
     m_cancel = new QPushButton(QStringLiteral("取消"), body);
+    m_cancel->setObjectName("cancel");
+    m_cancel->setFixedHeight(32);
+    auto cancelPolicy = m_cancel->sizePolicy();
+    cancelPolicy.setRetainSizeWhenHidden(true);
+    m_cancel->setSizePolicy(cancelPolicy);
     m_cancel->hide();
     connect(m_cancel, &QPushButton::clicked, this, [this] {
         if (m_task)
             m_task->abort();
     });
-    actions->addWidget(m_cancel, 0, Qt::AlignBottom);
+    // Share one column so showing Cancel never pushes the version label sideways.
+    auto* secondary = new QWidget(body);
+    auto* secondaryActions = new QVBoxLayout(secondary);
+    secondaryActions->setContentsMargins(0, 0, 0, 0);
+    secondaryActions->setSpacing(0);
+    secondaryActions->addWidget(m_cancel, 0, Qt::AlignRight | Qt::AlignTop);
+    secondaryActions->addStretch();
+    secondaryActions->addWidget(m_packVersion, 0, Qt::AlignRight | Qt::AlignBottom);
+    actions->addWidget(secondary, 0, Qt::AlignBottom);
     m_primary = new HomePrimaryButton(body);
     m_primary->setObjectName("primary");
+    secondary->setFixedHeight(m_primary->sizeHint().height());
     connect(m_primary, &QPushButton::clicked, this, &NiijimaHomeWindow::primaryAction);
     actions->addWidget(m_primary, 0, Qt::AlignBottom);
     layout->addLayout(actions);

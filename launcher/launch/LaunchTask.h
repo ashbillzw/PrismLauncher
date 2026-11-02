@@ -63,6 +63,8 @@ class LaunchTask : public Task {
 
     MinecraftInstance* instance() { return m_instance; }
 
+    LaunchStep* failedStep() const;
+
     void setPid(qint64 pid) { m_pid = pid; }
 
     qint64 pid() { return m_pid; }

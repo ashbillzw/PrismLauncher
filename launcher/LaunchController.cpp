@@ -41,6 +41,7 @@
 #include "minecraft/auth/AccountList.h"
 
 #include "net/NetUtils.h"
+#include "minecraft/launch/AutoInstallJava.h"
 #include "ui/InstanceWindow.h"
 #include "ui/dialogs/CustomMessageBox.h"
 #include "ui/dialogs/MSALoginDialog.h"
@@ -472,8 +473,15 @@ void LaunchController::onSucceeded()
 
 void LaunchController::onFailed(QString reason)
 {
-    if (m_instance->settings()->get("ShowConsoleOnError").toBool()) {
-        APPLICATION->showInstanceWindow(m_instance, "console");
+    const bool javaInstallFailed = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher")
+                                   && qobject_cast<AutoInstallJava*>(m_launcher->failedStep());
+    if (javaInstallFailed || m_instance->settings()->get("ShowConsoleOnError").toBool()) {
+        auto* console = APPLICATION->showInstanceWindow(m_instance, "console");
+        if (javaInstallFailed) {
+            auto* dialog = CustomMessageBox::selectable(console, tr("Error"), QStringLiteral("Java自动安装失败，请手动设定Java。"), QMessageBox::Critical);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->open();
+        }
     }
     emitFailed(std::move(reason));
 }

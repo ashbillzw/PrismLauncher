@@ -113,6 +113,12 @@ void LaunchTask::onStepFinished()
     }
 }
 
+LaunchStep* LaunchTask::failedStep() const
+{
+    auto step = m_steps.value(currentStep);
+    return step && step->getState() == Task::State::Failed ? step.get() : nullptr;
+}
+
 void LaunchTask::finalizeSteps(bool successful, const QString& error)
 {
     for (auto step = currentStep; step >= 0; step--) {

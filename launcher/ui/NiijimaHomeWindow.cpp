@@ -350,6 +350,13 @@ void NiijimaHomeWindow::showEvent(QShowEvent* event)
         checkForUpdates();
 }
 
+void NiijimaHomeWindow::changeEvent(QEvent* event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::ActivationChange && isActiveWindow() && isVisible() && !m_checkTask)
+        checkForUpdates();
+}
+
 void NiijimaHomeWindow::cancelUpdateCheck()
 {
     // Invalidate callbacks before abort(), which can emit finished synchronously.
@@ -366,6 +373,7 @@ void NiijimaHomeWindow::checkForUpdates(const QString& launchId)
 {
     if (m_task && m_task->isRunning())
         return;
+    const auto previousId = updateAvailable() ? m_update.release->id : 0;
     cancelUpdateCheck();
     const auto generation = m_update.begin();
     refreshPrimaryAction();
@@ -391,12 +399,14 @@ void NiijimaHomeWindow::checkForUpdates(const QString& launchId)
     const auto url = packIndexUrl();
     auto* task = new Niijima::PackIndexTask(url, APPLICATION->settings()->get("NiijimaPackVersionId").toString(), this);
     m_checkTask = task;
-    connect(task, &Task::finished, this, [this, task, generation, continueLaunch] {
+    connect(task, &Task::finished, this, [this, task, generation, continueLaunch, previousId] {
         if (m_checkTask == task)
             m_checkTask = nullptr;
         if (generation == m_update.generation) {
             if (task->wasSuccessful()) {
                 m_update.complete(generation, task->release());
+                if (updateAvailable() && task->release().id != previousId)
+                    m_installStatus->append(QStringLiteral("整合包有更新：v%1").arg(task->release().version));
             } else {
                 // No popup or status copy for a background check. The one-second gate still expires.
                 qWarning() << "Niijima pack check failed:" << task->failReason();

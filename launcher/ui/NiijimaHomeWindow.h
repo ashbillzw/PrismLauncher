@@ -24,6 +24,7 @@ class NiijimaHomeWindow : public QWidget {
 
    protected:
     void showEvent(QShowEvent*) override;
+    void changeEvent(QEvent*) override;
     void paintEvent(QPaintEvent*) override;
     void mousePressEvent(QMouseEvent*) override;
     void closeEvent(QCloseEvent*) override;

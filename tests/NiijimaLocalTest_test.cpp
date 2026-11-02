@@ -23,14 +23,14 @@ private slots:
     {
         using Niijima::defaultMaxMemoryMiB;
         QCOMPARE(defaultMaxMemoryMiB(0), 4096);
-        for (const auto [ram, heap] : {std::pair{3, 2}, {6, 4}, {11, 8}, {16, 12}, {24, 18},
-                                       {32, 24}, {48, 28}, {64, 32}, {96, 40}, {128, 48}, {256, 48}})
+        for (const auto [ram, heap] : {std::pair{3, 2}, {6, 4}, {11, 6}, {16, 8}, {24, 12},
+                                       {32, 16}, {48, 20}, {64, 24}, {96, 28}, {128, 32}, {256, 32}})
             QCOMPARE(defaultMaxMemoryMiB(ram * 1024), heap * 1024);
         int previous = 0;
         for (uint64_t ram = 1024; ram <= 256 * 1024; ++ram) {
             const auto heap = defaultMaxMemoryMiB(ram);
             QVERIFY(heap >= previous);
-            QVERIFY(heap <= 48 * 1024);
+            QVERIFY(heap <= 32 * 1024);
             QVERIFY(static_cast<uint64_t>(heap) <= ram);
             previous = heap;
         }
@@ -45,7 +45,7 @@ private slots:
     void automaticAndManualMemory()
     {
         // An old persisted 4 GiB limit must not defeat the default automatic mode.
-        for (const auto [ram, heap] : {std::pair{16, 12}, {64, 32}, {128, 48}, {256, 48}}) {
+        for (const auto [ram, heap] : {std::pair{16, 8}, {64, 24}, {128, 32}, {256, 32}}) {
             const auto automatic = Niijima::heapMemory(true, Niijima::defaultMaxMemoryMiB(ram * 1024), 2048, 4096);
             QCOMPARE(automatic.minimumMiB, 512);
             QCOMPARE(automatic.maximumMiB, heap * 1024);

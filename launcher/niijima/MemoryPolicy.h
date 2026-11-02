@@ -12,8 +12,8 @@ constexpr int defaultMaxMemoryMiB(uint64_t totalMiB)
         return 4096;  // Hardware discovery failed; retain the upstream fallback.
     struct Point { uint64_t ram; uint64_t heap; };
     constexpr std::array<Point, 6> points{{
-        {0, 0}, {6 * 1024, 4 * 1024}, {16 * 1024, 12 * 1024},
-        {32 * 1024, 24 * 1024}, {64 * 1024, 32 * 1024}, {128 * 1024, 48 * 1024}
+        {0, 0}, {6 * 1024, 4 * 1024}, {16 * 1024, 8 * 1024},
+        {32 * 1024, 16 * 1024}, {64 * 1024, 24 * 1024}, {128 * 1024, 32 * 1024}
     }};
     for (std::size_t i = 1; i < points.size(); ++i) {
         const auto [ram, heap] = points[i];
@@ -21,7 +21,7 @@ constexpr int defaultMaxMemoryMiB(uint64_t totalMiB)
         if (totalMiB <= ram)
             return static_cast<int>(previousHeap + (totalMiB - previousRam) * (heap - previousHeap) / (ram - previousRam));
     }
-    return 48 * 1024;
+    return static_cast<int>(points.back().heap);
 }
 
 struct HeapMemory {

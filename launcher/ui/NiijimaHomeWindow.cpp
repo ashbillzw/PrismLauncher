@@ -41,6 +41,7 @@
 #include "settings/Setting.h"
 #include "settings/SettingsObject.h"
 #include "ui/MainWindow.h"
+#include "ui/widgets/NiijimaInstallStatus.h"
 #include "ui/dialogs/MSALoginDialog.h"
 
 #ifdef Q_OS_WIN
@@ -320,6 +321,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     secondaryActions->addWidget(m_cancel, 0, Qt::AlignRight | Qt::AlignTop);
     secondaryActions->addStretch();
     secondaryActions->addWidget(m_packVersion, 0, Qt::AlignRight | Qt::AlignBottom);
+    m_installStatus = new NiijimaInstallStatus(m_primary);
     actions->addWidget(secondary, 0, Qt::AlignBottom);
     m_primary = new HomePrimaryButton(body);
     m_primary->setObjectName("primary");
@@ -501,6 +503,7 @@ void NiijimaHomeWindow::refreshPrimaryAction()
     auto* instance = APPLICATION->instances()->getInstanceById(m_selectedInstance);
     bool launching = false;
     bool running = false;
+    m_installStatus->clear();
     if (instance) {
         connect(instance, &BaseInstance::launchTaskChanged, this, &NiijimaHomeWindow::refreshPrimaryAction, Qt::UniqueConnection);
         auto* task = instance->getLaunchTask();
@@ -715,11 +718,11 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     m_progress->show();
     m_cancel->setText(QStringLiteral("取消"));
     m_cancel->show();
-    m_status->setText(QStringLiteral("正在下载整合包…"));
-    m_status->show();
+    m_status->hide();
+    m_installStatus->append(QStringLiteral("正在下载整合包…"));
     connect(task, &Task::abortStatusChanged, m_cancel, &QWidget::setEnabled);
     connect(task, &Task::abortButtonTextChanged, m_cancel, &QPushButton::setText);
-    connect(task, &Task::status, this, [this](const QString& status) { m_status->setText(status.section('\n', 0, 0)); });
+    connect(task, &Task::status, m_installStatus, &NiijimaInstallStatus::append);
     connect(importer, &Task::progressFraction, this, [this](double fraction) {
         m_progress->setValue(qMax(m_progress->value(), qMin(999, int(1000 * fraction))));
     });

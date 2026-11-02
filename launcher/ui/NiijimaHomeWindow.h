@@ -11,6 +11,7 @@ class QUrl;
 class QLabel;
 class QPushButton;
 class QProgressBar;
+class NiijimaInstallStatus;
 class InstanceTask;
 class MinecraftInstance;
 class NiijimaHomeWindow : public QWidget {
@@ -44,6 +45,7 @@ class NiijimaHomeWindow : public QWidget {
     void updateTransferText(const TaskStepProgress& progress);
     QPixmap m_frostedBackground;
     QLabel* m_status;
+    NiijimaInstallStatus* m_installStatus;
     QLabel* m_details;
     QLabel* m_packVersion;
     QPushButton* m_primary;

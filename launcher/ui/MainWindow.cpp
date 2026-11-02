@@ -337,6 +337,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     {
         // set the cat action priority here so you can still see the action in qt designer
         ui->actionCAT->setPriority(QAction::LowPriority);
+        if (APPLICATION->settings()->get("NiijimaHomeEnabled").toBool()) {
+            auto* home = new QAction(APPLICATION->logo(), QStringLiteral("返回首页"), this);
+            ui->mainToolBar->insertAction(ui->actionCAT, home);
+            ui->mainToolBar->removeAction(ui->actionCAT);
+            connect(home, &QAction::triggered, APPLICATION, &Application::showNiijimaHome);
+        }
         updateCatState();
         connect(ui->actionCAT, &QAction::toggled, this, &MainWindow::onCatToggled);
         connect(APPLICATION, &Application::currentCatChanged, this, &MainWindow::onCatChanged);

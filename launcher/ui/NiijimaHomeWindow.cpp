@@ -40,7 +40,6 @@
 #include "niijima/InstalledPacks.h"
 #include "settings/Setting.h"
 #include "settings/SettingsObject.h"
-#include "ui/MainWindow.h"
 #include "ui/widgets/NiijimaInstallStatus.h"
 #include "ui/dialogs/MSALoginDialog.h"
 
@@ -287,12 +286,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     auto* prism = new QPushButton(APPLICATION->prismLogo(), QStringLiteral("进入 Prism"), body);
     prism->setIconSize(QSize(20, 20));
     prism->setObjectName("prism");
-    connect(prism, &QPushButton::clicked, this, [this] {
-        auto* mainWindow = APPLICATION->showMainWindow();
-        connect(mainWindow, &MainWindow::isClosing, this, &NiijimaHomeWindow::onPrismClosing, Qt::UniqueConnection);
-        mainWindow->show();
-        hide();
-    });
+    connect(prism, &QPushButton::clicked, this, [] { APPLICATION->showMainWindow(); });
     actions->addWidget(prism, 0, Qt::AlignBottom);
     actions->addStretch();
     m_packVersion = new QLabel(body);
@@ -321,13 +315,13 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     secondaryActions->addWidget(m_cancel, 0, Qt::AlignRight | Qt::AlignTop);
     secondaryActions->addStretch();
     secondaryActions->addWidget(m_packVersion, 0, Qt::AlignRight | Qt::AlignBottom);
-    m_installStatus = new NiijimaInstallStatus(m_primary);
     actions->addWidget(secondary, 0, Qt::AlignBottom);
     m_primary = new HomePrimaryButton(body);
     m_primary->setObjectName("primary");
     secondary->setFixedHeight(m_primary->sizeHint().height());
     connect(m_primary, &QPushButton::clicked, this, &NiijimaHomeWindow::primaryAction);
     actions->addWidget(m_primary, 0, Qt::AlignBottom);
+    m_installStatus = new NiijimaInstallStatus(m_primary);
     layout->addLayout(actions);
     root->addWidget(body, 1);
     connect(APPLICATION->instances(), &InstanceList::instancesChanged, this, &NiijimaHomeWindow::refresh);
@@ -368,21 +362,36 @@ void NiijimaHomeWindow::cancelUpdateCheck()
     }
 }
 
-void NiijimaHomeWindow::checkForUpdates()
+void NiijimaHomeWindow::checkForUpdates(const QString& launchId)
 {
     if (m_task && m_task->isRunning())
         return;
     cancelUpdateCheck();
     const auto generation = m_update.begin();
     refreshPrimaryAction();
-    QTimer::singleShot(1000, Qt::PreciseTimer, this, [this, generation] {
+    const auto continueLaunch = [this, generation, launchId] {
+        if (launchId.isEmpty() || generation != m_update.generation)
+            return;
+        // Invalidate the other completion path before login can open a nested event loop.
+        cancelUpdateCheck();
+        refreshPrimaryAction();
+        if (isVisible() && m_selectedInstance == launchId && !updateAvailable()) {
+            auto* inst = APPLICATION->instances()->getInstanceById(launchId);
+            if (inst && inst->canLaunch())
+                launchInstance(inst);
+        }
+    };
+    QTimer::singleShot(1000, Qt::PreciseTimer, this, [this, generation, continueLaunch] {
+        if (generation != m_update.generation)
+            return;
         m_update.timeout(generation);
         refreshPrimaryAction();
+        continueLaunch();
     });
     const auto url = packIndexUrl();
     auto* task = new Niijima::PackIndexTask(url, APPLICATION->settings()->get("NiijimaPackVersionId").toString(), this);
     m_checkTask = task;
-    connect(task, &Task::finished, this, [this, task, generation] {
+    connect(task, &Task::finished, this, [this, task, generation, continueLaunch] {
         if (m_checkTask == task)
             m_checkTask = nullptr;
         if (generation == m_update.generation) {
@@ -393,6 +402,7 @@ void NiijimaHomeWindow::checkForUpdates()
                 qWarning() << "Niijima pack check failed:" << task->failReason();
             }
             refreshPrimaryAction();
+            continueLaunch();
         }
         task->deleteLater();
     });
@@ -455,20 +465,26 @@ void NiijimaHomeWindow::closeEvent(QCloseEvent* e)
     e->accept();
     emit isClosing();
 }
-void NiijimaHomeWindow::onPrismClosing()
+void NiijimaHomeWindow::exitWithPrism()
 {
-    if (!isHidden())
-        return;
-    if (m_task && m_task->isRunning()) {
-        // Keep an ongoing import accessible after its Prism window closes.
-        show();
-        raise();
-        activateWindow();
-    } else {
-        // Release the hidden home window so it cannot keep the application alive.
+    cancelUpdateCheck();
+    auto* task = m_task.data();
+    if (!task || !task->isRunning()) {
         close();
+        return;
     }
+    // Let the active worker release its files before destroying the home window.
+    disconnect(task, nullptr, this, nullptr);
+    connect(task, &Task::finished, this, [this] {
+        m_task = nullptr;
+        close();
+    }, Qt::QueuedConnection);
+    if (m_import)
+        m_import->discard();
+    else
+        task->abort();
 }
+
 void NiijimaHomeWindow::selectLatestInstance()
 {
     const auto* instances = APPLICATION->instances();
@@ -487,6 +503,7 @@ void NiijimaHomeWindow::refresh()
     if (m_task && m_task->isRunning())
         return;
     refreshPrimaryAction();
+    m_installStatus->clear();
     m_cancel->hide();
     m_progress->hide();
     m_details->clear();
@@ -503,7 +520,6 @@ void NiijimaHomeWindow::refreshPrimaryAction()
     auto* instance = APPLICATION->instances()->getInstanceById(m_selectedInstance);
     bool launching = false;
     bool running = false;
-    m_installStatus->clear();
     if (instance) {
         connect(instance, &BaseInstance::launchTaskChanged, this, &NiijimaHomeWindow::refreshPrimaryAction, Qt::UniqueConnection);
         auto* task = instance->getLaunchTask();
@@ -596,6 +612,32 @@ void NiijimaHomeWindow::showDownloadError(const QString& message, const QString&
     m_details->setVisible(!details.isEmpty());
 }
 
+void NiijimaHomeWindow::launchInstance(MinecraftInstance* inst)
+{
+    MinecraftAccountPtr account;
+    const bool starting = inst->canLaunch();
+    if (starting) {
+        auto* accounts = APPLICATION->accounts();
+        bool hasMicrosoftAccount = false;
+        for (int i = 0; i < accounts->count(); ++i)
+            hasMicrosoftAccount |= accounts->at(i)->accountType() == AccountType::MSA;
+        if (!hasMicrosoftAccount) {
+            m_loginInstance = inst->id();
+            refreshPrimaryAction();
+            account = MSALoginDialog::newAccount(this);
+            m_loginInstance.clear();
+            refreshPrimaryAction();
+            if (!account)
+                return;
+            accounts->addAccount(account);
+            if (accounts->count() == 1)
+                accounts->setDefaultAccount(account);
+        }
+    }
+    if (APPLICATION->launch(inst, LaunchMode::Normal, nullptr, account) && starting)
+        watchGameWindow(inst);
+}
+
 void NiijimaHomeWindow::primaryAction()
 {
     if ((m_task && m_task->isRunning()) || m_update.loading)
@@ -609,28 +651,10 @@ void NiijimaHomeWindow::primaryAction()
     auto* settings = APPLICATION->settings();
     const auto id = m_selectedInstance;
     if (auto* inst = APPLICATION->instances()->getInstanceById(id)) {
-        MinecraftAccountPtr account;
-        const bool starting = inst->canLaunch();
-        if (starting) {
-            auto* accounts = APPLICATION->accounts();
-            bool hasMicrosoftAccount = false;
-            for (int i = 0; i < accounts->count(); ++i)
-                hasMicrosoftAccount |= accounts->at(i)->accountType() == AccountType::MSA;
-            if (!hasMicrosoftAccount) {
-                m_loginInstance = id;
-                refreshPrimaryAction();
-                account = MSALoginDialog::newAccount(this);
-                m_loginInstance.clear();
-                refreshPrimaryAction();
-                if (!account)
-                    return;
-                accounts->addAccount(account);
-                if (accounts->count() == 1)
-                    accounts->setDefaultAccount(account);
-            }
-        }
-        if (APPLICATION->launch(inst, LaunchMode::Normal, nullptr, account) && starting)
-            watchGameWindow(inst);
+        if (inst->canLaunch())
+            checkForUpdates(id);
+        else
+            launchInstance(inst);
         return;
     }
     if (m_update.release) {

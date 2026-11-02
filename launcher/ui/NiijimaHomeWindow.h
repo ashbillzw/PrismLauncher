@@ -18,6 +18,7 @@ class NiijimaHomeWindow : public QWidget {
     Q_OBJECT
    public:
     explicit NiijimaHomeWindow(QWidget* parent = nullptr);
+    void exitWithPrism();
    signals:
     void isClosing();
 
@@ -28,7 +29,8 @@ class NiijimaHomeWindow : public QWidget {
     void closeEvent(QCloseEvent*) override;
 
    private:
-    void checkForUpdates();
+    void checkForUpdates(const QString& launchId = {});
+    void launchInstance(MinecraftInstance* instance);
     void cancelUpdateCheck();
     bool updateAvailable() const;
     Result<> savePackId(quint64 packId);
@@ -38,14 +40,13 @@ class NiijimaHomeWindow : public QWidget {
     void refreshPrimaryAction();
     void watchGameWindow(MinecraftInstance* instance);
     void primaryAction();
-    void onPrismClosing();
     void showDownloadError(const QString& message, const QString& details);
     void startReleaseLookup(const QUrl& indexUrl, const QString& requestedId);
     void startImport(const QUrl& url);
     void updateTransferText(const TaskStepProgress& progress);
     QPixmap m_frostedBackground;
-    QLabel* m_status;
     NiijimaInstallStatus* m_installStatus;
+    QLabel* m_status;
     QLabel* m_details;
     QLabel* m_packVersion;
     QPushButton* m_primary;

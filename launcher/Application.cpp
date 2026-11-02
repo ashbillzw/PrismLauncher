@@ -1795,6 +1795,9 @@ void Application::showNiijimaHome()
         ++m_openWindows;
         connect(m_niijimaHome, &NiijimaHomeWindow::isClosing, this, &Application::on_windowClose);
     }
+    if (m_mainWindow)
+        m_mainWindow->hide();
+    m_niijimaHome->setWindowState(m_niijimaHome->windowState() & ~Qt::WindowMinimized);
     m_niijimaHome->show();
     m_niijimaHome->raise();
     m_niijimaHome->activateWindow();
@@ -1816,7 +1819,10 @@ void Application::showNiijimaHome()
 
 MainWindow* Application::showMainWindow(bool minimized)
 {
+    if (m_niijimaHome)
+        m_niijimaHome->hide();
     if (m_mainWindow) {
+        m_mainWindow->show();
         m_mainWindow->setWindowState(m_mainWindow->windowState() & ~Qt::WindowMinimized);
         m_mainWindow->raise();
         m_mainWindow->activateWindow();
@@ -1895,8 +1901,11 @@ InstanceWindow* Application::showInstanceWindow(MinecraftInstance* instance, con
 void Application::on_windowClose()
 {
     m_openWindows--;
-    if (qobject_cast<NiijimaHomeWindow*>(sender()))
+    if (qobject_cast<NiijimaHomeWindow*>(sender())) {
         m_niijimaHome = nullptr;
+        if (m_mainWindow && m_mainWindow->isHidden())
+            m_mainWindow->close();
+    }
     auto* instWindow = qobject_cast<InstanceWindow*>(sender());
     if (instWindow) {
         QMutexLocker locker(&m_instanceExtrasMutex);
@@ -1909,6 +1918,8 @@ void Application::on_windowClose()
     auto* mainWindow = qobject_cast<MainWindow*>(sender());
     if (mainWindow) {
         m_mainWindow = nullptr;
+        if (m_niijimaHome && m_niijimaHome->isHidden())
+            m_niijimaHome->exitWithPrism();
     }
     auto* logWindow = qobject_cast<ViewLogWindow*>(sender());
     if (logWindow) {

@@ -987,6 +987,11 @@ class InstanceStaging : public Task {
    private slots:
     void childSucceeded()
     {
+        // An optional download may treat abort as Skip. Discard the staging tree on exit.
+        if (m_child->discarded()) {
+            childAborted();
+            return;
+        }
         const unsigned sleepTime = m_backoff();
         if (m_parent->commitStagedInstance(m_stagingPath, *m_child, m_child->group())) {
             m_backoffTimer.stop();

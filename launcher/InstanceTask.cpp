@@ -182,6 +182,18 @@ void InstanceTask::downloadFiles(MinecraftInstance* inst, bool weightedProgress)
     m_gameFilesTask->start();
 }
 
+void InstanceTask::discard()
+{
+    m_discarded = true;
+    // Some import stages only become abortable after their worker has started.
+    connect(this, &Task::abortStatusChanged, this, [this](bool available) {
+        if (available && isRunning() && canAbort())
+            abort();
+    }, Qt::QueuedConnection);
+    if (isRunning() && canAbort())
+        abort();
+}
+
 bool InstanceTask::abort()
 {
     if (!canAbort()) {

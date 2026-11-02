@@ -36,6 +36,9 @@ class InstanceTask : public Task {
     bool shouldConfirmUpdate() const { return m_confirmUpdate; }
     void setConfirmUpdate(bool confirm) { m_confirmUpdate = confirm; }
 
+    void discard();
+    bool discarded() const { return m_discarded; }
+
     bool shouldOverride() const { return m_overrideExisting; }
 
     QString originalInstanceID() const { return m_originalInstanceId; };
@@ -64,6 +67,7 @@ class InstanceTask : public Task {
     QString m_targetDir;
     QString m_stagingPath;
 
+    bool m_discarded = false;
     bool m_overrideExisting = false;
     bool m_confirmUpdate = true;
 

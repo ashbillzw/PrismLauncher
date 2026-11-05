@@ -28,6 +28,10 @@ class NiijimaHomeWindow : public QWidget {
     void paintEvent(QPaintEvent*) override;
     void mousePressEvent(QMouseEvent*) override;
     void closeEvent(QCloseEvent*) override;
+#ifdef Q_OS_WIN
+    void dragEnterEvent(QDragEnterEvent*) override;
+    void dropEvent(QDropEvent*) override;
+#endif
 
    private:
     void checkForUpdates(const QString& launchId = {});

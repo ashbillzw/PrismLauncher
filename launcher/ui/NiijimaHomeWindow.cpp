@@ -3,6 +3,10 @@
 #include <QCloseEvent>
 #include <QShowEvent>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFileInfo>
+#include <QMimeData>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -27,6 +31,7 @@
 #include <QVBoxLayout>
 #include <QWindow>
 #include "Application.h"
+#include "MainWindow.h"
 #include "InstanceImportTask.h"
 #include "InstanceList.h"
 #include "LaunchController.h"
@@ -52,6 +57,17 @@
 
 namespace {
 constexpr int kTitleBarHeight = 46;
+
+#ifdef Q_OS_WIN
+QString droppedPackFile(const QMimeData* data)
+{
+    const auto urls = data->urls();
+    if (urls.size() != 1 || !urls.front().isLocalFile())
+        return {};
+    const auto path = urls.front().toLocalFile();
+    return QFileInfo(path).isFile() ? path : QString();
+}
+#endif
 
 // Measure the visible glyphs, so the font's trailing letter spacing does not add uneven padding.
 class HomePrimaryButton : public QPushButton {
@@ -170,6 +186,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     if (chineseFont < 0)
         qWarning("Could not load the bundled Noto Sans SC font");
     setObjectName("niijimaHome");
+#ifdef Q_OS_WIN
+    setAcceptDrops(true);
+#endif
     const auto launcherTitle = QStringLiteral("新岛启动器 v1.0");
     setWindowTitle(launcherTitle);
     setWindowIcon(APPLICATION->logo());
@@ -458,6 +477,27 @@ void NiijimaHomeWindow::paintEvent(QPaintEvent*)
     p.setPen(QPen(QColor("#d39b45"), 1));
     p.drawPath(clip);
 }
+#ifdef Q_OS_WIN
+void NiijimaHomeWindow::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (!droppedPackFile(event->mimeData()).isEmpty() && event->possibleActions().testFlag(Qt::CopyAction)) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+    }
+}
+
+void NiijimaHomeWindow::dropEvent(QDropEvent* event)
+{
+    const auto path = droppedPackFile(event->mimeData());
+    if (path.isEmpty() || !event->possibleActions().testFlag(Qt::CopyAction))
+        return;
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+    // Return to Explorer before opening Prism's modal import dialog.
+    QTimer::singleShot(0, this, [path] { APPLICATION->showMainWindow()->addInstance(path); });
+}
+#endif
+
 void NiijimaHomeWindow::mousePressEvent(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton && e->position().y() < kTitleBarHeight && windowHandle())

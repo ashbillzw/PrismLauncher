@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "NiijimaHomeWindow.h"
+#include "dialogs/MigrationDialog.h"
+#include <QFrame>
 #include <QCloseEvent>
 #include <QShowEvent>
 #include <QDir>
@@ -19,6 +21,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMessageBox>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -68,6 +71,42 @@ QString droppedPackFile(const QMimeData* data)
     return QFileInfo(path).isFile() ? path : QString();
 }
 #endif
+
+enum class CaptionGlyph { Menu, Minimize, Close };
+
+class CaptionButton final : public QPushButton {
+public:
+    CaptionButton(CaptionGlyph glyph, QWidget* parent) : QPushButton(parent), m_glyph(glyph)
+    {
+        setFixedSize(50, kTitleBarHeight);
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QPushButton::paintEvent(event);
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.translate(width() / 2.0, height() / 2.0);
+        painter.setPen(QPen(Qt::white, 1.35, Qt::SolidLine, Qt::FlatCap));
+        switch (m_glyph) {
+            case CaptionGlyph::Menu:
+                for (int y : { -4, 0, 4 })
+                    painter.drawLine(QPointF(-6, y), QPointF(6, y));
+                break;
+            case CaptionGlyph::Minimize:
+                painter.drawLine(QPointF(-5.5, 0), QPointF(5.5, 0));
+                break;
+            case CaptionGlyph::Close:
+                painter.drawLine(QPointF(-5, -5), QPointF(5, 5));
+                painter.drawLine(QPointF(-5, 5), QPointF(5, -5));
+                break;
+        }
+    }
+
+private:
+    CaptionGlyph m_glyph;
+};
 
 // Measure the visible glyphs, so the font's trailing letter spacing does not add uneven padding.
 class HomePrimaryButton : public QPushButton {
@@ -185,6 +224,9 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     static const int chineseFont = QFontDatabase::addApplicationFont(":/niijima/NotoSansSC-VariableFont_wght.ttf");
     if (chineseFont < 0)
         qWarning("Could not load the bundled Noto Sans SC font");
+    m_channel = APPLICATION->settings()->get("NiijimaPackChannel").toString();
+    if (m_channel.isEmpty())
+        m_channel = Niijima::DefaultPackChannel;
     setObjectName("niijimaHome");
 #ifdef Q_OS_WIN
     setAcceptDrops(true);
@@ -210,12 +252,18 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QPushButton:hover { background: #ffe3b0; border-color: #b46d06; }
         QPushButton:pressed { background: #ffd082; }
         QPushButton:disabled { color: #9d8e78; border-color: #d7c6ae; background: #eee0cc; }
-        QPushButton#minimize, QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
+        QPushButton#homeMenu, QPushButton#minimize, QPushButton#close { background: transparent; border: 0; border-radius: 0; font-size: 20px; padding: 0; color: #ffffff; }
         /* The titlebar is inset 1px from the window's 14px corner. */
         QPushButton#close { border-top-right-radius: 13px; }
-        QPushButton#minimize:hover { background: rgba(255, 255, 255, 35); }
-        QPushButton#minimize:pressed { background: rgba(255, 255, 255, 60); }
+        QPushButton#homeMenu:hover, QPushButton#minimize:hover { background: rgba(255, 255, 255, 35); }
+        QPushButton#homeMenu:pressed, QPushButton#minimize:pressed { background: rgba(255, 255, 255, 60); }
         QPushButton#close:hover { background: #c42b1c; color: white; }
+        QMenu#channelMenu { background: #fffdf9; color: #322b23; border: 1px solid #e3d6c3; border-top: 3px solid #f39801; padding: 4px; }
+        QMenu#channelMenu::item { padding: 7px 18px; border-radius: 4px; }
+        QMenu#channelMenu::item:selected { background: #fff1d8; color: #48321a; }
+        QMenu#channelMenu::item:disabled { color: #a49889; }
+        QMessageBox { background: #fffcf7; }
+        QMessageBox QPushButton:default { background: #f39801; color: #352c22; }
         QProgressBar { border: 0; background: #f9dca8; color: #452800; text-align: center; font-size: 12px; }
         QProgressBar::chunk { background: #ecb354; }
         QWidget#homeBody QLabel { color: #fff9ee; }
@@ -238,6 +286,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     titleBar->setFixedHeight(kTitleBarHeight);
     auto* titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(24, 0, 0, 0);
+    titleLayout->setSpacing(0);
     auto* title = new QLabel(launcherTitle, titleBar);
     QFont heading("Noto Sans SC", 14, QFont::Bold);
     heading.setFamilies({ "Noto Sans SC", "Microsoft YaHei UI" });
@@ -246,16 +295,40 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     title->setAttribute(Qt::WA_TransparentForMouseEvents);
     titleLayout->addWidget(title);
     titleLayout->addStretch();
-    auto* minimize = new QPushButton(QString::fromUtf8("−"), titleBar);
+    auto* menuButton = new CaptionButton(CaptionGlyph::Menu, titleBar);
+    menuButton->setObjectName("homeMenu");
+    menuButton->setAccessibleName(QStringLiteral("菜单"));
+    titleLayout->addWidget(menuButton);
+    auto* menu = new QMenu(menuButton);
+    menu->setObjectName("channelMenu");
+    auto* migrate = menu->addAction(QStringLiteral("迁移设置"), this, [this] {
+        if (m_migrationOffer)
+            m_migrationOffer->close();
+        openMigration(m_selectedInstance);
+    });
+    auto* channelAction = menu->addAction(QStringLiteral("管理员cdk"), this, [this] {
+        if (m_channel == Niijima::DefaultPackChannel)
+            enterChannelCode();
+        else
+            setPackChannel(Niijima::DefaultPackChannel);
+    });
+    connect(menuButton, &QPushButton::clicked, this, [this, menuButton, menu, migrate, channelAction] {
+        selectLatestInstance();
+        const auto* instance = APPLICATION->instances()->getInstanceById(m_selectedInstance);
+        const bool idle = !m_task || !m_task->isRunning();
+        migrate->setEnabled(idle && instance && !Niijima::migrationFiles(instance->gameRoot()).isEmpty());
+        channelAction->setEnabled(idle);
+        channelAction->setText(m_channel == Niijima::DefaultPackChannel ? QStringLiteral("管理员cdk") : QStringLiteral("返回普通渠道"));
+        menu->popup(menuButton->mapToGlobal(QPoint(menuButton->width() - menu->sizeHint().width(), menuButton->height())));
+    });
+    auto* minimize = new CaptionButton(CaptionGlyph::Minimize, titleBar);
     minimize->setObjectName("minimize");
     minimize->setAccessibleName(QStringLiteral("最小化"));
-    minimize->setFixedSize(62, kTitleBarHeight);
     connect(minimize, &QPushButton::clicked, this, &QWidget::showMinimized);
     titleLayout->addWidget(minimize);
-    auto* close = new QPushButton(QString::fromUtf8("×"), titleBar);
+    auto* close = new CaptionButton(CaptionGlyph::Close, titleBar);
     close->setObjectName("close");
     close->setAccessibleName(QStringLiteral("关闭"));
-    close->setFixedSize(62, kTitleBarHeight);
     connect(close, &QPushButton::clicked, this, &QWidget::close);
     titleLayout->addWidget(close);
     root->addWidget(titleBar);
@@ -362,6 +435,44 @@ QUrl packIndexUrl()
 }
 } // namespace
 
+void NiijimaHomeWindow::setPackChannel(const QString& channel)
+{
+    if (m_migrationOffer)
+        m_migrationOffer->close();
+    m_channel = channel;
+    APPLICATION->settings()->set("NiijimaPackChannel", channel);
+    m_update.release.reset();
+    refresh();
+    checkForUpdates();
+}
+
+void NiijimaHomeWindow::enterChannelCode()
+{
+    const auto code = requestHomeChannelCode(this);
+    if (!code)
+        return;
+    if (code->isEmpty()) {
+        showHomeChannelError(this, QStringLiteral("cdk无效"));
+        return;
+    }
+    cancelUpdateCheck();
+    auto* task = new Niijima::PackIndexTask(packIndexUrl(), {}, this);
+    task->lookupCode(*code);
+    m_task = task;
+    m_primary->setEnabled(false);
+    connect(task, &Task::finished, this, [this, task] {
+        m_task = nullptr;
+        if (task->wasSuccessful())
+            setPackChannel(task->channel());
+        else {
+            refresh();
+            showHomeChannelError(this, task->failReason());
+        }
+        task->deleteLater();
+    });
+    task->start();
+}
+
 void NiijimaHomeWindow::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
@@ -416,7 +527,7 @@ void NiijimaHomeWindow::checkForUpdates(const QString& launchId)
         continueLaunch();
     });
     const auto url = packIndexUrl();
-    auto* task = new Niijima::PackIndexTask(url, APPLICATION->settings()->get("NiijimaPackVersionId").toString(), this);
+    auto* task = new Niijima::PackIndexTask(url, APPLICATION->settings()->get("NiijimaPackVersionId").toString(), this, m_channel);
     m_checkTask = task;
     connect(task, &Task::finished, this, [this, task, generation, continueLaunch, previousId] {
         if (m_checkTask == task)
@@ -425,7 +536,7 @@ void NiijimaHomeWindow::checkForUpdates(const QString& launchId)
             if (task->wasSuccessful()) {
                 m_update.complete(generation, task->release());
                 if (updateAvailable() && task->release().id != previousId)
-                    m_installStatus->append(QStringLiteral("整合包有更新：v%1").arg(task->release().version));
+                    m_installStatus->append(QStringLiteral("整合包有更新：v%1").arg(Niijima::channelVersion(task->release().version, m_channel)));
             } else {
                 // No popup or status copy for a background check. The one-second gate still expires.
                 qWarning() << "Niijima pack check failed:" << task->failReason();
@@ -449,7 +560,7 @@ Result<> NiijimaHomeWindow::savePackId(quint64 packId)
     const auto* instance = APPLICATION->instances()->getInstanceById(m_committedId);
     if (!instance)
         return std::unexpected(QStringLiteral("Cannot record pack-id: installed instance was not found."));
-    return Niijima::writeInstalledPackId(instance->instanceRoot(), packId);
+    return Niijima::writeInstalledPackId(instance->instanceRoot(), instance->gameRoot(), packId, m_channel);
 }
 
 void NiijimaHomeWindow::paintEvent(QPaintEvent*)
@@ -535,17 +646,57 @@ void NiijimaHomeWindow::exitWithPrism()
         task->abort();
 }
 
-void NiijimaHomeWindow::selectLatestInstance()
+static Niijima::InstalledPackSelection installedSourceExcept(const QString& excluded, const QString& channel)
 {
     const auto* instances = APPLICATION->instances();
     QList<Niijima::InstalledPackCandidate> candidates;
     for (int i = 0; i < instances->count(); ++i) {
         const auto* instance = instances->at(i);
-        candidates.append({instance->id(), instance->instanceRoot()});
+        if (instance->id() == excluded)
+            continue;
+        candidates.append({instance->id(), instance->instanceRoot(), instance->gameRoot()});
     }
-    const auto selected = Niijima::selectLatestInstalledPack(candidates);
+    return Niijima::selectLatestInstalledPack(candidates, channel);
+}
+
+void NiijimaHomeWindow::selectLatestInstance()
+{
+    const auto selected = installedSourceExcept({}, m_channel);
     m_selectedInstance = selected.instanceId;
     m_selectedPackId = selected.packId;
+}
+
+void NiijimaHomeWindow::offerMigration()
+{
+    auto* target = APPLICATION->instances()->getInstanceById(m_committedId);
+    if (!target || Niijima::migrationFiles(target->gameRoot()).isEmpty())
+        return;
+    const auto targetId = target->id();
+    m_migrationOffer = migrationOffer(this, kTitleBarHeight + 1, [this, targetId] { openMigration(targetId); });
+}
+
+void NiijimaHomeWindow::openMigration(const QString& targetId)
+{
+    auto* instances = APPLICATION->instances();
+    auto* target = instances->getInstanceById(targetId);
+    if (!target)
+        return;
+    const auto selection = installedSourceExcept(targetId, m_channel);
+    Niijima::MigrationSource automatic;
+    QString version;
+    if (auto* source = instances->getInstanceById(selection.instanceId)) {
+        automatic = {source->gameRoot(), QString::number(selection.packId), m_channel};
+        version = Niijima::installedPackVersion(source->instanceRoot());
+        if (version.isEmpty())
+            version = source->name();
+    }
+    auto* dialog = new MigrationDialog(this, target->gameRoot(), automatic, Niijima::channelVersion(version, m_channel), [targetId] {
+        auto* instance = APPLICATION->instances()->getInstanceById(targetId);
+        auto* launch = APPLICATION->launchController(targetId);
+        return (instance && instance->isRunning()) || (launch && !launch->isFinished());
+    });
+    connect(dialog, &QDialog::accepted, this, [this] { m_installStatus->transient(QStringLiteral("配置已迁移")); });
+    dialog->open();
 }
 
 void NiijimaHomeWindow::refresh()
@@ -644,6 +795,7 @@ void NiijimaHomeWindow::refreshPackVersion()
     QString version = Niijima::installedPackVersion(instance->instanceRoot());
     if (version.isEmpty())
         version = instance->getManagedPackVersionName().trimmed();
+    version = Niijima::channelVersion(version, m_channel);
     if (version.isEmpty()) {
         version = QStringLiteral("未知");
     } else if (!version.startsWith(QLatin1Char('v'), Qt::CaseInsensitive)) {
@@ -730,7 +882,7 @@ void NiijimaHomeWindow::primaryAction()
 void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& requestedId)
 {
     cancelUpdateCheck();
-    auto* task = new Niijima::PackIndexTask(indexUrl, requestedId, this);
+    auto* task = new Niijima::PackIndexTask(indexUrl, requestedId, this, m_channel);
     m_task = task;
     m_primary->setEnabled(false);
     m_primary->setText(QStringLiteral("加载中"));
@@ -777,6 +929,8 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     importer->setIcon(QStringLiteral("default"));
     importer->setGroup(QStringLiteral("新岛铁道"));
     m_import = importer;
+    if (m_migrationOffer)
+        m_migrationOffer->close();
     m_committedId.clear();
     auto* task = APPLICATION->instances()->wrapInstanceTask(importer);
     m_task = task;
@@ -827,6 +981,8 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
             }
         }
         refresh();
+        if (success)
+            offerMigration();
         if (!success) {
             m_status->setText(cancelled ? QStringLiteral("已取消安装") : QStringLiteral("安装失败，可重试。"));
             if (!cancelled)

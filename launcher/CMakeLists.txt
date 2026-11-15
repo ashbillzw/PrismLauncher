@@ -47,6 +47,8 @@ set(CORE_SOURCES
     InstanceImportTask.cpp
 
     # Niijima pack release index
+    niijima/OptionsMigration.h
+    niijima/OptionsMigration.cpp
     niijima/InstalledPacks.h
     niijima/InstalledPacks.cpp
     niijima/HomeUpdateState.h
@@ -819,6 +821,8 @@ SET(LAUNCHER_SOURCES
     logs/AnonymizeLog.h
 
     # GUI - windows
+    ui/dialogs/MigrationDialog.h
+    ui/dialogs/MigrationDialog.cpp
     ui/NiijimaHomeWindow.h
     ui/NiijimaHomeWindow.cpp
     ui/MainWindow.h

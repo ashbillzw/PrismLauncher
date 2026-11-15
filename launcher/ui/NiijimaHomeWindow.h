@@ -6,6 +6,7 @@
 #include <QWidget>
 #include "tasks/Task.h"
 #include "niijima/HomeUpdateState.h"
+class QFrame;
 class QShowEvent;
 class QUrl;
 class QLabel;
@@ -41,6 +42,12 @@ class NiijimaHomeWindow : public QWidget {
     Result<> savePackId(quint64 packId);
     void selectLatestInstance();
     void refresh();
+    QPointer<QFrame> m_migrationOffer;
+    void offerMigration();
+    void setPackChannel(const QString& channel);
+    void enterChannelCode();
+    QString m_channel;
+    void openMigration(const QString& targetId);
     void refreshPackVersion();
     void refreshPrimaryAction();
     void watchGameWindow(MinecraftInstance* instance);

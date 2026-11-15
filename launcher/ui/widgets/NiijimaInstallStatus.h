@@ -22,11 +22,19 @@ public:
         m_frame.setTimerType(Qt::PreciseTimer);
         m_frame.setInterval(16);
         connect(&m_frame, &QTimer::timeout, this, &NiijimaInstallStatus::advance);
+        m_transientTimer.setSingleShot(true);
+        connect(&m_transientTimer, &QTimer::timeout, this, [this] {
+            m_fading = true;
+            m_clock.start();
+            m_frame.start();
+        });
         hide();
     }
 
     void append(const QString& message)
     {
+        m_transientTimer.stop();
+        m_fading = false;
         const QString line = message.section('\n', 0, 0);
         if (line.isEmpty() || (!m_lines.isEmpty() && m_lines.first().text == line))
             return;
@@ -47,8 +55,16 @@ public:
         update();
     }
 
+    void transient(const QString& message)
+    {
+        append(message);
+        m_transientTimer.start(1600);
+    }
+
     void clear()
     {
+        m_transientTimer.stop();
+        m_fading = false;
         hide();
         m_frame.stop();
         m_lines.clear();
@@ -92,6 +108,15 @@ private:
     void advance()
     {
         const qreal seconds = m_clock.restart() / 1000.0;
+        if (m_fading && !m_lines.isEmpty()) {
+            m_lines.first().opacity = qMax(0.0, m_lines.first().opacity - seconds / .45);
+            m_rowsToScroll = m_lines.first().opacity - 1;
+            if (!m_lines.first().opacity)
+                clear();
+            else
+                update();
+            return;
+        }
         const qreal previous = m_rowsToScroll;
         m_rowsToScroll = qMax(0.0, previous - seconds / .18);
         for (qsizetype i = 3; i < m_lines.size(); ++i) {
@@ -118,5 +143,6 @@ private:
     QList<Line> m_lines;
     qreal m_rowsToScroll = 0;
     QElapsedTimer m_clock;
-    QTimer m_frame;
+    QTimer m_frame, m_transientTimer;
+    bool m_fading = false;
 };

@@ -1,202 +1,228 @@
 {
-  "1": {
-    "version": "1.6",
-    "file": "新岛铁道 v1.6.zip"
+  "cdks": {
+    "admin": "admin",
+    "ashbill": "ashbill"
   },
-  "2": {
-    "version": "1.6.test0003",
-    "file": "新岛铁道 v1.6.test0003.zip"
-  },
-  "3": {
-    "version": "1.6.test0004",
-    "file": "新岛铁道 v1.6.test0004.zip"
-  },
-  "4": {
-    "file": "新岛铁道 v1.6.test0005.zip",
-    "version": "1.6.test0005"
-  },
-  "5": {
-    "version": "1.6.test0006",
-    "file": "新岛铁道 v1.6.test0006.zip"
-  },
-  "6": {
-    "version": "1.6.test0007",
-    "file": "新岛铁道 v1.6.test0007.zip"
-  },
-  "7": {
-    "version": "1.6.test0008",
-    "file": "新岛铁道 v1.6.test0008.zip"
-  },
-  "8": {
-    "version": "1.6.test0009",
-    "file": "新岛铁道 v1.6.test0009.zip"
-  },
-  "9": {
-    "file": "新岛铁道 v1.6.test0010.zip",
-    "version": "1.6.test0010"
-  },
-  "10": {
-    "version": "1.6.test0011",
-    "file": "新岛铁道 v1.6.test0011.zip"
-  },
-  "11": {
-    "version": "1.6.test0012",
-    "file": "新岛铁道 v1.6.test0012.zip"
-  },
-  "13": {
-    "version": "1.6.test0013",
-    "file": "新岛铁道 v1.6.test0013.zip"
-  },
-  "18": {
-    "version": "1.6.test0018",
-    "file": "新岛铁道 v1.6.test0018.zip"
-  },
-  "19": {
-    "version": "1.6.test0019",
-    "file": "新岛铁道 v1.6.test0019.zip"
-  },
-  "20": {
-    "version": "1.6.test0020",
-    "file": "新岛铁道 v1.6.test0020.zip"
-  },
-  "21": {
-    "version": "1.6.test0021",
-    "file": "新岛铁道 v1.6.test0021.zip"
-  },
-  "22": {
-    "version": "1.6.test0022",
-    "file": "新岛铁道 v1.6.test0022.zip"
-  },
-  "23": {
-    "version": "1.6.test0023",
-    "file": "新岛铁道 v1.6.test0023.zip"
-  },
-  "24": {
-    "version": "1.6.test0024",
-    "file": "新岛铁道 v1.6.test0024.zip"
-  },
-  "25": {
-    "version": "1.6.test0025",
-    "file": "新岛铁道 v1.6.test0025.zip"
-  },
-  "26": {
-    "version": "1.6.test0026",
-    "file": "新岛铁道 v1.6.test0026.zip"
-  },
-  "27": {
-    "version": "1.6.test0027",
-    "file": "新岛铁道 v1.6.test0027.zip"
-  },
-  "28": {
-    "version": "1.6.test0028",
-    "file": "新岛铁道 v1.6.test0028.zip"
-  },
-  "29": {
-    "version": "1.6.test0029",
-    "file": "新岛铁道 v1.6.test0029.zip"
-  },
-  "30": {
-    "version": "1.6.test0030",
-    "file": "新岛铁道 v1.6.test0030.zip"
-  },
-  "31": {
-    "version": "1.6.test0031",
-    "file": "新岛铁道 v1.6.test0031.zip"
-  },
-  "32": {
-    "version": "1.6.test0032",
-    "file": "新岛铁道 v1.6.test0032.zip"
-  },
-  "33": {
-    "version": "1.6.test0033",
-    "file": "新岛铁道 v1.6.test0033.zip"
-  },
-  "34": {
-    "version": "1.6.test0034",
-    "file": "新岛铁道 v1.6.test0034.zip"
-  },
-  "35": {
-    "version": "1.6.test0035",
-    "file": "新岛铁道 v1.6.test0035.zip"
-  },
-  "36": {
-    "version": "1.6.test0037",
-    "file": "新岛铁道 v1.6.test0037.zip"
-  },
-  "37": {
-    "version": "1.6.test0038",
-    "file": "新岛铁道 v1.6.test0038.zip"
-  },
-  "38": {
-    "version": "1.6.test0039",
-    "file": "新岛铁道 v1.6.test0039.zip"
-  },
-  "39": {
-    "version": "1.6.test0040",
-    "file": "新岛铁道 v1.6.test0040.zip"
-  },
-  "40": {
-    "version": "1.6.test0041",
-    "file": "新岛铁道 v1.6.test0041.zip"
-  },
-  "41": {
-    "version": "1.6.test0042",
-    "file": "新岛铁道 v1.6.test0042.zip"
-  },
-  "42": {
-    "version": "1.6.test0043",
-    "file": "新岛铁道 v1.6.test0043.zip"
-  },
-  "43": {
-    "version": "1.6.test0044",
-    "file": "新岛铁道 v1.6.test0044.zip"
-  },
-  "44": {
-    "version": "1.6.test0045",
-    "file": "新岛铁道 v1.6.test0045.zip"
-  },
-  "45": {
-    "version": "1.6.test0046",
-    "file": "新岛铁道 v1.6.test0046.zip"
-  },
-  "46": {
-    "version": "1.6.test0048",
-    "file": "新岛铁道 v1.6.test0048.zip"
-  },
-  "47": {
-    "version": "1.6.test0049",
-    "file": "新岛铁道 v1.6.test0049.zip"
-  },
-  "48": {
-    "version": "1.6.test0050",
-    "file": "新岛铁道 v1.6.test0050.zip"
-  },
-  "49": {
-    "version": "1.6.test0051",
-    "file": "新岛铁道 v1.6.test0051.zip"
-  },
-  "50": {
-    "version": "1.6.test0052",
-    "file": "新岛铁道 v1.6.test0052.zip"
-  },
-  "51": {
-    "version": "1.6.test0053",
-    "file": "新岛铁道 v1.6.test0053.zip"
-  },
-  "52": {
-    "version": "1.6.test0054",
-    "file": "新岛铁道 v1.6.test0054.zip"
-  },
-  "53": {
-    "version": "1.6.test0055",
-    "file": "新岛铁道 v1.6.test0055.zip"
-  },
-  "54": {
-    "version": "1.6.test0056",
-    "file": "新岛铁道 v1.6.test0056.zip"
-  },
-  "55": {
-    "version": "1.6.test0057",
-    "file": "新岛铁道 v1.6.test0057.zip"
+  "channels": {
+    "master": {
+      "1": {
+        "version": "1.6",
+        "file": "新岛铁道 v1.6.zip"
+      },
+      "2": {
+        "version": "1.6.test0003",
+        "file": "新岛铁道 v1.6.test0003.zip"
+      },
+      "3": {
+        "version": "1.6.test0004",
+        "file": "新岛铁道 v1.6.test0004.zip"
+      },
+      "4": {
+        "file": "新岛铁道 v1.6.test0005.zip",
+        "version": "1.6.test0005"
+      },
+      "5": {
+        "version": "1.6.test0006",
+        "file": "新岛铁道 v1.6.test0006.zip"
+      },
+      "6": {
+        "version": "1.6.test0007",
+        "file": "新岛铁道 v1.6.test0007.zip"
+      },
+      "7": {
+        "version": "1.6.test0008",
+        "file": "新岛铁道 v1.6.test0008.zip"
+      },
+      "8": {
+        "version": "1.6.test0009",
+        "file": "新岛铁道 v1.6.test0009.zip"
+      },
+      "9": {
+        "file": "新岛铁道 v1.6.test0010.zip",
+        "version": "1.6.test0010"
+      },
+      "10": {
+        "version": "1.6.test0011",
+        "file": "新岛铁道 v1.6.test0011.zip"
+      },
+      "11": {
+        "version": "1.6.test0012",
+        "file": "新岛铁道 v1.6.test0012.zip"
+      },
+      "13": {
+        "version": "1.6.test0013",
+        "file": "新岛铁道 v1.6.test0013.zip"
+      },
+      "18": {
+        "version": "1.6.test0018",
+        "file": "新岛铁道 v1.6.test0018.zip"
+      },
+      "19": {
+        "version": "1.6.test0019",
+        "file": "新岛铁道 v1.6.test0019.zip"
+      },
+      "20": {
+        "version": "1.6.test0020",
+        "file": "新岛铁道 v1.6.test0020.zip"
+      },
+      "21": {
+        "version": "1.6.test0021",
+        "file": "新岛铁道 v1.6.test0021.zip"
+      },
+      "22": {
+        "version": "1.6.test0022",
+        "file": "新岛铁道 v1.6.test0022.zip"
+      },
+      "23": {
+        "version": "1.6.test0023",
+        "file": "新岛铁道 v1.6.test0023.zip"
+      },
+      "24": {
+        "version": "1.6.test0024",
+        "file": "新岛铁道 v1.6.test0024.zip"
+      },
+      "25": {
+        "version": "1.6.test0025",
+        "file": "新岛铁道 v1.6.test0025.zip"
+      },
+      "26": {
+        "version": "1.6.test0026",
+        "file": "新岛铁道 v1.6.test0026.zip"
+      },
+      "27": {
+        "version": "1.6.test0027",
+        "file": "新岛铁道 v1.6.test0027.zip"
+      },
+      "28": {
+        "version": "1.6.test0028",
+        "file": "新岛铁道 v1.6.test0028.zip"
+      },
+      "29": {
+        "version": "1.6.test0029",
+        "file": "新岛铁道 v1.6.test0029.zip"
+      },
+      "30": {
+        "version": "1.6.test0030",
+        "file": "新岛铁道 v1.6.test0030.zip"
+      },
+      "31": {
+        "version": "1.6.test0031",
+        "file": "新岛铁道 v1.6.test0031.zip"
+      },
+      "32": {
+        "version": "1.6.test0032",
+        "file": "新岛铁道 v1.6.test0032.zip"
+      },
+      "33": {
+        "version": "1.6.test0033",
+        "file": "新岛铁道 v1.6.test0033.zip"
+      },
+      "34": {
+        "version": "1.6.test0034",
+        "file": "新岛铁道 v1.6.test0034.zip"
+      },
+      "35": {
+        "version": "1.6.test0035",
+        "file": "新岛铁道 v1.6.test0035.zip"
+      },
+      "36": {
+        "version": "1.6.test0037",
+        "file": "新岛铁道 v1.6.test0037.zip"
+      },
+      "37": {
+        "version": "1.6.test0038",
+        "file": "新岛铁道 v1.6.test0038.zip"
+      },
+      "38": {
+        "version": "1.6.test0039",
+        "file": "新岛铁道 v1.6.test0039.zip"
+      },
+      "39": {
+        "version": "1.6.test0040",
+        "file": "新岛铁道 v1.6.test0040.zip"
+      },
+      "40": {
+        "version": "1.6.test0041",
+        "file": "新岛铁道 v1.6.test0041.zip"
+      },
+      "41": {
+        "version": "1.6.test0042",
+        "file": "新岛铁道 v1.6.test0042.zip"
+      },
+      "42": {
+        "version": "1.6.test0043",
+        "file": "新岛铁道 v1.6.test0043.zip"
+      },
+      "43": {
+        "version": "1.6.test0044",
+        "file": "新岛铁道 v1.6.test0044.zip"
+      },
+      "44": {
+        "version": "1.6.test0045",
+        "file": "新岛铁道 v1.6.test0045.zip"
+      },
+      "45": {
+        "version": "1.6.test0046",
+        "file": "新岛铁道 v1.6.test0046.zip"
+      },
+      "46": {
+        "version": "1.6.test0048",
+        "file": "新岛铁道 v1.6.test0048.zip"
+      },
+      "47": {
+        "version": "1.6.test0049",
+        "file": "新岛铁道 v1.6.test0049.zip"
+      },
+      "48": {
+        "version": "1.6.test0050",
+        "file": "新岛铁道 v1.6.test0050.zip"
+      },
+      "49": {
+        "version": "1.6.test0051",
+        "file": "新岛铁道 v1.6.test0051.zip"
+      },
+      "50": {
+        "version": "1.6.test0052",
+        "file": "新岛铁道 v1.6.test0052.zip"
+      },
+      "51": {
+        "version": "1.6.test0053",
+        "file": "新岛铁道 v1.6.test0053.zip"
+      },
+      "52": {
+        "version": "1.6.test0054",
+        "file": "新岛铁道 v1.6.test0054.zip"
+      },
+      "53": {
+        "version": "1.6.test0055",
+        "file": "新岛铁道 v1.6.test0055.zip"
+      },
+      "54": {
+        "version": "1.6.test0056",
+        "file": "新岛铁道 v1.6.test0056.zip"
+      },
+      "55": {
+        "version": "1.6.test0057",
+        "file": "新岛铁道 v1.6.test0057.zip"
+      },
+      "56": {
+        "version": "1.6.test0058",
+        "file": "新岛铁道 v1.6.test0058.zip"
+      },
+      "57": {
+        "version": "1.6.test0059",
+        "file": "新岛铁道 v1.6.test0059.zip"
+      },
+      "58": {
+        "version": "1.6.test0060",
+        "file": "新岛铁道 v1.6.test0060.zip"
+      },
+      "59": {
+        "version": "1.6.test0061",
+        "file": "新岛铁道 v1.6.test0061.zip"
+      }
+    },
+    "admin": {},
+    "ashbill": {}
   }
 }

@@ -13,6 +13,8 @@
 #include "modplatform/EnsureMetadataTask.h"
 #include "modplatform/helpers/OverrideUtils.h"
 
+#include "niijima/InstalledPacks.h"
+
 #include "net/ChecksumValidator.h"
 
 #include "net/ApiRequest.h"
@@ -470,9 +472,8 @@ bool ModrinthCreationTask::promptForUntrustedMods()
         return true;
     }
 
-    QFile marker(FS::PathCombine(m_stagingPath, "niijima-pack.json"));
-    if (marker.open(QIODevice::ReadOnly) &&
-        QJsonDocument::fromJson(marker.readAll()).object().value("token").toDouble() == 114514) {
+    const QDir mcDir{ FS::PathCombine(m_stagingPath, m_rootPath) };
+    if (!Niijima::packMarkerPath(m_stagingPath, mcDir.path()).isEmpty()) {
         return true;
     }
 
@@ -487,8 +488,7 @@ bool ModrinthCreationTask::promptForUntrustedMods()
         }
     }
 
-    const QDir mcDir{ FS::PathCombine(m_stagingPath, m_rootPath) };
-    const QString modsPath{ FS::PathCombine(m_stagingPath, m_rootPath, "mods") };
+    const QString modsPath = mcDir.filePath("mods");
     if (QDir(modsPath).exists()) {
         for (const auto& entry :
              QDirListing(modsPath, QDirListing::IteratorFlag::FilesOnly | QDirListing::IteratorFlag::ResolveSymlinks |

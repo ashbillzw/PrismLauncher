@@ -666,6 +666,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
                 ? Niijima::distributionRoot() + QStringLiteral("packs/latest.json")
                 : QString());
         m_settings->registerSetting("NiijimaPackVersionId", QString());
+        m_settings->registerSetting("NiijimaPackChannel", QStringLiteral("master"));
         m_settings->registerSetting("NiijimaDefaultsApplied", false);
         // Theming
         m_settings->registerSetting("IconTheme", QString());

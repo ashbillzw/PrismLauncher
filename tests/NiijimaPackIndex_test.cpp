@@ -21,6 +21,28 @@ class NiijimaPackIndexTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void namedChannelUsesItsOwnIds()
+    {
+        const QByteArray data = R"({"cdks":{"sample":"future"},"channels":{
+            "master":{"58":{"version":"1.6","file":"base.zip"}},
+            "admin":{"1":{"version":"1.6.a","file":"admin.zip"}},
+            "future":{"1":{"version":"custom","file":"future.zip"}},
+            "ashbill":{}}})";
+        QCOMPARE(*Niijima::channelForCode(data, "sample"), QString("future"));
+        QVERIFY(!Niijima::channelForCode(data, "wrong"));
+        QCOMPARE(Niijima::parsePackIndex(data, indexUrl)->id, quint64(58));
+        QCOMPARE(Niijima::parsePackIndex(data, indexUrl, "1", "admin")->version, QString("1.6.a"));
+        QCOMPARE(Niijima::parsePackIndex(data, indexUrl, {}, "future")->packUrl.fileName(), QString("future.zip"));
+        QVERIFY(!Niijima::parsePackIndex(data, indexUrl, "58", "admin"));
+        QVERIFY(!Niijima::parsePackIndex(data, indexUrl, {}, "ashbill"));
+        QCOMPARE(Niijima::channelVersion("1.6", "ashbill"), QString("1.6.ab"));
+        QCOMPARE(Niijima::channelVersion("1.6", "master"), QString("1.6"));
+        QCOMPARE(Niijima::channelVersion("1.6", "admin"), QString("1.6.a"));
+        QCOMPARE(Niijima::channelVersion("v1.6.ab", "ashbill"), QString("v1.6.ab"));
+        QCOMPARE(Niijima::channelVersion("1.6.1", "master"), QString("1.6.1"));
+        QCOMPARE(Niijima::channelVersion("1.6.test0060", "master"), QString("1.6.test0060"));
+    }
+
     void loadingTimeoutKeepsLateUpdate()
     {
         Niijima::HomeUpdateState state;

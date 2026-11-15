@@ -41,6 +41,24 @@ private slots:
         QCOMPARE(result.instanceId, QStringLiteral("renamed instance"));
         QCOMPARE(result.packId, quint64(10));
     }
+    void identicalNumbersInDifferentChannels()
+    {
+        QTemporaryDir dir;
+        QVERIFY(makeInstance(dir.filePath("public"), "3"));
+        QVERIFY(makeInstance(dir.filePath("private"), "3"));
+        QFile marker(dir.filePath("private/niijima-pack.json"));
+        QVERIFY(marker.open(QIODevice::WriteOnly));
+        marker.write(R"({"token":114514,"pack-id":"3","channel":"admin"})");
+        marker.close();
+        const QList<Niijima::InstalledPackCandidate> candidates{
+            {"public", dir.filePath("public")}, {"private", dir.filePath("private")}
+        };
+        QCOMPARE(Niijima::selectLatestInstalledPack(candidates).instanceId, QString("public"));
+        QCOMPARE(Niijima::selectLatestInstalledPack(candidates, "admin").instanceId, QString("private"));
+        QVERIFY(Niijima::selectLatestInstalledPack(candidates, "ashbill").instanceId.isEmpty());
+        QVERIFY(!Niijima::writeInstalledPackId(dir.filePath("private"), {}, 3, "master"));
+    }
+
     void deterministicTieAndMissingInstance()
     {
         QTemporaryDir dir;
@@ -61,18 +79,40 @@ private slots:
             QVERIFY(Niijima::selectLatestInstalledPack({{"test", dir.path()}}).instanceId.isEmpty());
         }
     }
+    void usesGameDirectoryMarkerAndFallsBackToLegacy()
+    {
+        QTemporaryDir dir;
+        const auto game = dir.filePath("minecraft");
+        QVERIFY(makeInstance(dir.path(), "3"));
+        QVERIFY(QDir().mkpath(game));
+        QFile marker(QDir(game).filePath("niijima-pack.json"));
+        QVERIFY(marker.open(QIODevice::WriteOnly));
+        const QByteArray bytes = R"({"token":114514,"pack-id":"5","migration":{}})";
+        QCOMPARE(marker.write(bytes), bytes.size());
+        marker.close();
+        const QList<Niijima::InstalledPackCandidate> candidates{ { "test", dir.path(), game } };
+        QCOMPARE(Niijima::packMarkerPath(dir.path(), game), marker.fileName());
+        QCOMPARE(Niijima::selectLatestInstalledPack(candidates).packId, quint64(5));
+        QVERIFY(Niijima::writeInstalledPackId(dir.path(), game, 5).has_value());
+        QVERIFY(!Niijima::writeInstalledPackId(dir.path(), game, 7).has_value());
+        QVERIFY(marker.open(QIODevice::ReadOnly));
+        QCOMPARE(marker.readAll(), bytes);
+        marker.close();
+        QVERIFY(marker.remove());
+        QCOMPARE(Niijima::selectLatestInstalledPack(candidates).packId, quint64(3));
+    }
     void writesOnlyPackIdAlongsideToken()
     {
         QTemporaryDir dir;
         QVERIFY(makeInstance(dir.path(), ""));
-        QVERIFY(Niijima::writeInstalledPackId(dir.path(), 3).has_value());
+        QVERIFY(Niijima::writeInstalledPackId(dir.path(), {}, 3).has_value());
         QFile marker(dir.filePath("niijima-pack.json"));
         QVERIFY(marker.open(QIODevice::ReadOnly));
         const auto object = QJsonDocument::fromJson(marker.readAll()).object();
         QCOMPARE(object.size(), 2);
         QCOMPARE(object.value("token").toInt(), 114514);
         QCOMPARE(object.value("pack-id").toString(), QStringLiteral("3"));
-        QVERIFY(!Niijima::writeInstalledPackId(dir.path(), 0).has_value());
+        QVERIFY(!Niijima::writeInstalledPackId(dir.path(), {}, 0).has_value());
     }
 };
 QTEST_GUILESS_MAIN(NiijimaInstalledPacksTest)

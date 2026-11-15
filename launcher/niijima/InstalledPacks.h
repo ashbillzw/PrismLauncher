@@ -2,18 +2,20 @@
 #pragma once
 #include <QList>
 #include <QString>
-#include "Result.h"
+#include "PackIndex.h"
 
 namespace Niijima {
 struct InstalledPackCandidate {
     QString instanceId;
     QString root;
+    QString gameRoot;
 };
 struct InstalledPackSelection {
     QString instanceId;
     quint64 packId = 0;
 };
 QString installedPackVersion(const QString& root);
-Result<> writeInstalledPackId(const QString& root, quint64 packId);
-InstalledPackSelection selectLatestInstalledPack(const QList<InstalledPackCandidate>& candidates);
+QString packMarkerPath(const QString& root, const QString& gameRoot);
+Result<> writeInstalledPackId(const QString& root, const QString& gameRoot, quint64 packId, const QString& channel = DefaultPackChannel);
+InstalledPackSelection selectLatestInstalledPack(const QList<InstalledPackCandidate>& candidates, const QString& channel = DefaultPackChannel);
 } // namespace Niijima

@@ -34,6 +34,14 @@ bool validFileName(const QString& name)
 
 }  // namespace
 
+QString channelVersion(QString version, const QString& channel)
+{
+    const auto suffix = channel == "admin" ? QStringLiteral(".a") : channel == "ashbill" ? QStringLiteral(".ab") : QString{};
+    if (!version.isEmpty() && !version.endsWith(suffix))
+        version += suffix;
+    return version;
+}
+
 Result<quint64> parsePackId(const QString& text)
 {
     if (text.isEmpty() || text.startsWith(QLatin1Char('0')))
@@ -51,7 +59,16 @@ Result<quint64> parsePackId(const QString& text)
     return value;
 }
 
-Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl, const QString& requestedId)
+Result<QString> channelForCode(const QByteArray& data, const QString& code)
+{
+    const auto index = QJsonDocument::fromJson(data).object();
+    const auto channel = index.value("cdks").toObject().value(code).toString();
+    if (code.isEmpty() || channel.isEmpty() || !index.value("channels").toObject().value(channel).isObject())
+        return std::unexpected(QStringLiteral("cdk无效"));
+    return channel;
+}
+
+Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl, const QString& requestedId, const QString& channel)
 {
     if (!validIndexUrl(indexUrl))
         return std::unexpected(QStringLiteral("版本索引地址无效；请使用 HTTPS 地址。"));
@@ -73,7 +90,17 @@ Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl,
         return std::unexpected(QStringLiteral("版本索引必须是至少包含一个版本的 JSON 对象。"));
 
     PackRelease selected;
-    const auto object = document.object();
+    auto object = document.object();
+    if (object.contains("channels")) {
+        const auto entries = object.value("channels").toObject().value(channel);
+        if (!entries.isObject())
+            return std::unexpected(QStringLiteral("未找到渠道 %1").arg(channel));
+        object = entries.toObject();
+    } else if (channel != DefaultPackChannel) {
+        return std::unexpected(QStringLiteral("未找到渠道 %1").arg(channel));
+    }
+    if (object.isEmpty())
+        return std::unexpected(QStringLiteral("该渠道尚无发行包"));
     for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
         auto id = parsePackId(it.key());
         if (!id)
@@ -103,8 +130,8 @@ Result<PackRelease> parsePackIndex(const QByteArray& data, const QUrl& indexUrl,
     return selected;
 }
 
-PackIndexTask::PackIndexTask(const QUrl& indexUrl, QString requestedId, QObject* parent)
-    : m_indexUrl(indexUrl), m_requestedId(std::move(requestedId))
+PackIndexTask::PackIndexTask(const QUrl& indexUrl, QString requestedId, QObject* parent, QString channel)
+    : m_indexUrl(indexUrl), m_requestedId(std::move(requestedId)), m_channel(std::move(channel))
 {
     setParent(parent);
     setObjectName(QStringLiteral("Niijima::PackIndex"));
@@ -145,7 +172,17 @@ void PackIndexTask::executeTask()
     connect(download.get(), &Task::succeeded, this, [this, response] {
         if (!isRunning())
             return;
-        auto result = parsePackIndex(*response, m_indexUrl, m_requestedId);
+        if (!m_code.isEmpty()) {
+            const auto channel = channelForCode(*response, m_code);
+            if (!channel) {
+                emitFailed(channel.error());
+                return;
+            }
+            m_channel = *channel;
+            emitSucceeded();
+            return;
+        }
+        auto result = parsePackIndex(*response, m_indexUrl, m_requestedId, m_channel);
         if (!result) {
             emitFailed(result.error());
             return;

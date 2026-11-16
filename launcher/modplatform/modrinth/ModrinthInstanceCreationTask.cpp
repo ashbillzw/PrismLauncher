@@ -195,7 +195,7 @@ void ModrinthCreationTask::createInstance()
 
         // Apply the overrides
         if (!FS::move(overridePath, mcPath)) {
-            emitFailed(tr("Could not rename the overrides folder:\n") + "overrides");
+            emitFailed(installFailure(InstallFailure::Disk, tr("Could not rename the overrides folder:\n") + "overrides"));
             return;
         }
     }
@@ -208,7 +208,7 @@ void ModrinthCreationTask::createInstance()
 
         // Apply the overrides
         if (!FS::overrideFolder(mcPath, clientOverridePath)) {
-            emitFailed(tr("Could not rename the client overrides folder:\n") + "client overrides");
+            emitFailed(installFailure(InstallFailure::Disk, tr("Could not rename the client overrides folder:\n") + "client overrides"));
             return;
         }
     }
@@ -266,9 +266,9 @@ void ModrinthCreationTask::createInstance()
         auto filePath = FS::PathCombine(rootModpackPath, fileName);
         if (!rootModpackUrl.isParentOf(QUrl::fromLocalFile(filePath))) {
             // This means we somehow got out of the root folder, so abort here to prevent exploits
-            emitFailed(
+            emitFailed(installFailure(InstallFailure::Manifest,
                 tr("One of the files has a path that leads to an arbitrary location (%1). This is a security risk and isn't allowed.")
-                    .arg(fileName));
+                    .arg(fileName)));
             return;
         }
         if (fileName.startsWith("mods/")) {
@@ -279,7 +279,7 @@ void ModrinthCreationTask::createInstance()
             m_resources.insert(file.hash.toHex(), mod);
         }
         if (file.downloads.empty()) {
-            emitFailed(tr("The file '%1' is missing a download link. This is invalid in the pack format.").arg(fileName));
+            emitFailed(installFailure(InstallFailure::Manifest, tr("The file '%1' is missing a download link. This is invalid in the pack format.").arg(fileName)));
             return;
         }
         qDebug() << "Will try to download" << file.downloads.front() << "to" << filePath;
@@ -310,7 +310,7 @@ void ModrinthCreationTask::createInstance()
     }
 
     connect(downloadMods.get(), &NetJob::succeeded, this, &ModrinthCreationTask::ensureMetaLoop);
-    connect(downloadMods.get(), &NetJob::failed, this, &ModrinthCreationTask::emitFailed);
+    connect(downloadMods.get(), &NetJob::failed, this, [this](const QString& reason) { emitFailed(installFailure(InstallFailure::Other, reason)); });
     connect(downloadMods.get(), &NetJob::aborted, this, &ModrinthCreationTask::emitAborted);
     connect(downloadMods.get(), &NetJob::progress, this, [this](qint64 current, qint64 total) {
         setDetails(tr("%1 out of %2 complete").arg(current).arg(total));
@@ -413,7 +413,8 @@ bool ModrinthCreationTask::parseManifest(const QString& indexPath, std::vector<F
         return {};
     };
     if (auto res = parse(); !res) {
-        emitFailed(tr("Could not understand pack index:\n") + res.error());
+        emitFailed(installFailure(QFileInfo(indexPath).isReadable() ? InstallFailure::Manifest : InstallFailure::Disk,
+                                  tr("Could not understand pack index:\n") + res.error()));
         return false;
     }
     if (!optionalFiles.empty()) {
@@ -454,7 +455,7 @@ void ModrinthCreationTask::ensureMetaLoop()
     auto ensureMetadataTask = makeShared<EnsureMetadataTask>(m_resources, folder, ModPlatform::ResourceProvider::MODRINTH);
     ensureMetadataTask->setUpdateLock(true);
     connect(ensureMetadataTask.get(), &Task::succeeded, this, &ModrinthCreationTask::finishInstall);
-    connect(ensureMetadataTask.get(), &Task::failed, this, &ModrinthCreationTask::emitFailed);
+    connect(ensureMetadataTask.get(), &Task::failed, this, [this](const QString& reason) { emitFailed(installFailure(InstallFailure::Other, reason)); });
     connect(ensureMetadataTask.get(), &Task::aborted, this, &ModrinthCreationTask::emitAborted);
     connect(ensureMetadataTask.get(), &Task::progress, this, [this](qint64 current, qint64 total) {
         setDetails(tr("%1 out of %2 complete").arg(current).arg(total));
@@ -578,7 +579,7 @@ void ModrinthCreationTask::finishInstall()
         }
 
         if (deleteFailed) {
-            emitFailed(tr("Failed to remove old conflicting files."));
+            emitFailed(installFailure(InstallFailure::Disk, tr("Failed to remove old conflicting files.")));
             return;
         }
     }

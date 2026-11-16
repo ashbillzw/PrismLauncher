@@ -16,6 +16,6 @@ struct InstalledPackSelection {
 };
 QString installedPackVersion(const QString& root);
 QString packMarkerPath(const QString& root, const QString& gameRoot);
-Result<> writeInstalledPackId(const QString& root, const QString& gameRoot, quint64 packId, const QString& channel = DefaultPackChannel);
+Result<> verifyInstalledPackId(const QString& root, const QString& gameRoot, quint64 packId, const QString& channel = DefaultPackChannel);
 InstalledPackSelection selectLatestInstalledPack(const QList<InstalledPackCandidate>& candidates, const QString& channel = DefaultPackChannel);
 } // namespace Niijima

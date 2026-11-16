@@ -49,6 +49,7 @@ set(CORE_SOURCES
     # Niijima pack release index
     niijima/OptionsMigration.h
     niijima/OptionsMigration.cpp
+    niijima/FtbMapMerge.cpp
     niijima/InstalledPacks.h
     niijima/InstalledPacks.cpp
     niijima/HomeUpdateState.h

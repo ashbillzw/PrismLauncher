@@ -976,7 +976,7 @@ class InstanceStaging : public Task {
     void executeTask() override
     {
         if (m_stagingPath.isNull()) {
-            emitFailed(tr("Could not create staging folder"));
+            emitFailed(m_child->installFailure(InstanceTask::InstallFailure::Disk, tr("Could not create staging folder")));
             return;
         }
 
@@ -1001,7 +1001,7 @@ class InstanceStaging : public Task {
         // we actually failed, retry?
         if (sleepTime == m_maxBackoff) {
             m_backoffTimer.stop();
-            emitFailed(tr("Failed to commit instance, even after multiple retries. It is being blocked by something."));
+            emitFailed(m_child->installFailure(InstanceTask::InstallFailure::Disk, tr("Failed to commit instance, even after multiple retries. It is being blocked by something.")));
             return;
         }
         qDebug() << "Failed to commit instance" << m_child->name() << "Initiating backoff:" << sleepTime;

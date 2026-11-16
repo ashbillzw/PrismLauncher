@@ -8,7 +8,7 @@
 #include "niijima/InstalledPacks.h"
 
 namespace {
-bool makeInstance(const QString& root, const QString& packId, int token = 114514)
+bool makeInstance(const QString& root, const QJsonValue& packId)
 {
     if (!QDir().mkpath(root))
         return false;
@@ -19,7 +19,7 @@ bool makeInstance(const QString& root, const QString& packId, int token = 114514
     QFile marker(QDir(root).filePath("niijima-pack.json"));
     if (!marker.open(QIODevice::WriteOnly))
         return false;
-    const auto bytes = QJsonDocument(QJsonObject{{"token", token}, {"pack-id", packId}}).toJson();
+    const auto bytes = QJsonDocument(QJsonObject{{"pack-id", packId}}).toJson();
     return marker.write(bytes) == bytes.size();
 }
 }
@@ -32,7 +32,7 @@ private slots:
         QTemporaryDir dir;
         QVERIFY(makeInstance(dir.filePath("old"), "2"));
         QVERIFY(makeInstance(dir.filePath("new"), "10"));
-        QVERIFY(makeInstance(dir.filePath("unrelated"), "999", 123));
+        QVERIFY(makeInstance(dir.filePath("unrelated"), 999));
         const auto result = Niijima::selectLatestInstalledPack({
             {"新岛铁道 test9999", dir.filePath("old")},
             {"renamed instance", dir.filePath("new")},
@@ -48,7 +48,7 @@ private slots:
         QVERIFY(makeInstance(dir.filePath("private"), "3"));
         QFile marker(dir.filePath("private/niijima-pack.json"));
         QVERIFY(marker.open(QIODevice::WriteOnly));
-        marker.write(R"({"token":114514,"pack-id":"3","channel":"admin"})");
+        marker.write(R"({"pack-id":"3","channel":"admin"})");
         marker.close();
         const QList<Niijima::InstalledPackCandidate> candidates{
             {"public", dir.filePath("public")}, {"private", dir.filePath("private")}
@@ -56,7 +56,7 @@ private slots:
         QCOMPARE(Niijima::selectLatestInstalledPack(candidates).instanceId, QString("public"));
         QCOMPARE(Niijima::selectLatestInstalledPack(candidates, "admin").instanceId, QString("private"));
         QVERIFY(Niijima::selectLatestInstalledPack(candidates, "ashbill").instanceId.isEmpty());
-        QVERIFY(!Niijima::writeInstalledPackId(dir.filePath("private"), {}, 3, "master"));
+        QVERIFY(!Niijima::verifyInstalledPackId(dir.filePath("private"), {}, 3, "master"));
     }
 
     void deterministicTieAndMissingInstance()
@@ -87,32 +87,26 @@ private slots:
         QVERIFY(QDir().mkpath(game));
         QFile marker(QDir(game).filePath("niijima-pack.json"));
         QVERIFY(marker.open(QIODevice::WriteOnly));
-        const QByteArray bytes = R"({"token":114514,"pack-id":"5","migration":{}})";
+        const QByteArray bytes = R"({"pack-id":"5","migration":{}})";
         QCOMPARE(marker.write(bytes), bytes.size());
         marker.close();
         const QList<Niijima::InstalledPackCandidate> candidates{ { "test", dir.path(), game } };
         QCOMPARE(Niijima::packMarkerPath(dir.path(), game), marker.fileName());
         QCOMPARE(Niijima::selectLatestInstalledPack(candidates).packId, quint64(5));
-        QVERIFY(Niijima::writeInstalledPackId(dir.path(), game, 5).has_value());
-        QVERIFY(!Niijima::writeInstalledPackId(dir.path(), game, 7).has_value());
+        QVERIFY(Niijima::verifyInstalledPackId(dir.path(), game, 5).has_value());
+        QVERIFY(!Niijima::verifyInstalledPackId(dir.path(), game, 7).has_value());
         QVERIFY(marker.open(QIODevice::ReadOnly));
         QCOMPARE(marker.readAll(), bytes);
         marker.close();
         QVERIFY(marker.remove());
         QCOMPARE(Niijima::selectLatestInstalledPack(candidates).packId, quint64(3));
     }
-    void writesOnlyPackIdAlongsideToken()
+    void rejectsUnregisteredMarker()
     {
         QTemporaryDir dir;
-        QVERIFY(makeInstance(dir.path(), ""));
-        QVERIFY(Niijima::writeInstalledPackId(dir.path(), {}, 3).has_value());
-        QFile marker(dir.filePath("niijima-pack.json"));
-        QVERIFY(marker.open(QIODevice::ReadOnly));
-        const auto object = QJsonDocument::fromJson(marker.readAll()).object();
-        QCOMPARE(object.size(), 2);
-        QCOMPARE(object.value("token").toInt(), 114514);
-        QCOMPARE(object.value("pack-id").toString(), QStringLiteral("3"));
-        QVERIFY(!Niijima::writeInstalledPackId(dir.path(), {}, 0).has_value());
+        QVERIFY(makeInstance(dir.path(), QJsonValue::Undefined));
+        QVERIFY(Niijima::packMarkerPath(dir.path(), {}).isEmpty());
+        QVERIFY(!Niijima::verifyInstalledPackId(dir.path(), {}, 3).has_value());
     }
 };
 QTEST_GUILESS_MAIN(NiijimaInstalledPacksTest)

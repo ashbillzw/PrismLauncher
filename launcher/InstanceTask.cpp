@@ -1,4 +1,5 @@
 #include "InstanceTask.h"
+#include "niijima/PackError.h"
 #include <QApplication>
 #include <QDir>
 
@@ -135,6 +136,25 @@ void InstanceTask::scheduleToDelete(QWidget* parent, const QDir& dir, const QStr
     }
 }
 
+QString InstanceTask::installFailure(InstallFailure kind, const QString& detail) const
+{
+    if (!m_niijimaRelease)
+        return detail;
+    switch (kind) {
+        case InstallFailure::Archive: return Niijima::packError(5001, detail);
+        case InstallFailure::Manifest: return Niijima::packError(5002, detail);
+        case InstallFailure::ReleaseUrl: return Niijima::packError(5003, detail);
+        case InstallFailure::Network:
+            qWarning().noquote() << "Niijima install:" << detail;
+            return QStringLiteral("下载失败，请检查网络后重试");
+        case InstallFailure::Disk:
+            qWarning().noquote() << "Niijima install:" << detail;
+            return QStringLiteral("无法读取或写入安装文件");
+        case InstallFailure::Other: break;
+    }
+    return Niijima::packError(5004, detail);
+}
+
 void InstanceTask::downloadFiles(MinecraftInstance* inst, bool weightedProgress)
 {
     if (!APPLICATION->settings()->get("DownloadGameFilesDuringInstanceCreation").toBool()) {
@@ -168,9 +188,9 @@ void InstanceTask::downloadFiles(MinecraftInstance* inst, bool weightedProgress)
         if (!isRunning()) {
             return;
         }
-        if (!task->wasSuccessful()) {
+        if (!task->wasSuccessful() && !(m_niijimaRelease && (m_skippingGameFiles || task->getState() == Task::State::AbortedByUser))) {
             CustomMessageBox::selectable(QApplication::activeWindow(), tr("Error"),
-                                         tr("Could not download game files: %1").arg(task->failReason()), QMessageBox::Warning)
+                                         installFailure(InstallFailure::Other, tr("Could not download game files: %1").arg(task->failReason())), QMessageBox::Warning)
                 ->show();
         }
         emitSucceeded();
@@ -201,6 +221,7 @@ bool InstanceTask::abort()
     }
 
     if (m_gameFilesTask) {
+        m_skippingGameFiles = true;
         return m_gameFilesTask->abort();
     }
 

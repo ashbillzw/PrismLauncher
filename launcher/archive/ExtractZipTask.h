@@ -30,10 +30,11 @@ namespace MMCZip {
 class ExtractZipTask : public Task {
     Q_OBJECT
    public:
-    ExtractZipTask(QString input, QDir outputDir, QString subdirectory = "")
-        : m_input(input), m_outputDir(outputDir), m_subdirectory(subdirectory)
+    ExtractZipTask(QString input, QDir outputDir, QString subdirectory = "", bool strict = false)
+        : m_input(input, strict), m_outputDir(outputDir), m_subdirectory(subdirectory)
     {}
     virtual ~ExtractZipTask() = default;
+    bool outputFailed() const { return m_outputFailed; }
 
    protected:
     virtual void executeTask() override;
@@ -47,6 +48,7 @@ class ExtractZipTask : public Task {
     QDir m_outputDir;
     QString m_subdirectory;
 
+    bool m_outputFailed = false;
     QFuture<Result<>> m_zipFuture;
     QFutureWatcher<Result<>> m_zipWatcher;
 };

@@ -7,19 +7,19 @@
 #include "tasks/Task.h"
 #include "niijima/HomeUpdateState.h"
 class QFrame;
+class QMessageBox;
 class QShowEvent;
 class QUrl;
 class QLabel;
 class QPushButton;
 class QProgressBar;
 class NiijimaInstallStatus;
-class InstanceTask;
+class InstanceImportTask;
 class MinecraftInstance;
 class NiijimaHomeWindow : public QWidget {
     Q_OBJECT
    public:
     explicit NiijimaHomeWindow(QWidget* parent = nullptr);
-    void exitWithPrism();
    signals:
     void isClosing();
 
@@ -35,6 +35,7 @@ class NiijimaHomeWindow : public QWidget {
 #endif
 
    private:
+    void abortInstallAndClose();
     void checkForUpdates(const QString& launchId = {});
     void launchInstance(MinecraftInstance* instance);
     void cancelUpdateCheck();
@@ -52,14 +53,13 @@ class NiijimaHomeWindow : public QWidget {
     void refreshPrimaryAction();
     void watchGameWindow(MinecraftInstance* instance);
     void primaryAction();
-    void showDownloadError(const QString& message, const QString& details);
+    void showDownloadError(const QString& message);
     void startReleaseLookup(const QUrl& indexUrl, const QString& requestedId);
     void startImport(const QUrl& url);
     void updateTransferText(const TaskStepProgress& progress);
     QPixmap m_frostedBackground;
     NiijimaInstallStatus* m_installStatus;
     QLabel* m_status;
-    QLabel* m_details;
     QLabel* m_packVersion;
     QPushButton* m_primary;
     QPushButton* m_cancel;
@@ -69,7 +69,9 @@ class NiijimaHomeWindow : public QWidget {
     Niijima::HomeUpdateState m_update;
     QPointer<Task> m_checkTask;
     QPointer<Task> m_task;
-    QPointer<InstanceTask> m_import;
+    QPointer<InstanceImportTask> m_import;
+    bool m_closeAfterSkip = false;
+    QPointer<QMessageBox> m_installExitPrompt;
     QString m_committedId;
     QString m_loginInstance;
     QHash<QUuid, TaskStepProgress> m_transfers;

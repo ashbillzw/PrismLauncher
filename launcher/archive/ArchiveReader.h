@@ -38,11 +38,12 @@ int archive_read_free(archive*);
 namespace MMCZip {
 class ArchiveReader {
    public:
-    explicit ArchiveReader(QString fileName) : m_archivePath(std::move(fileName)) {}
+    explicit ArchiveReader(QString fileName, bool strict = false) : m_archivePath(std::move(fileName)), m_strict(strict) {}
     virtual ~ArchiveReader() = default;
 
     QStringList getFiles();
     QString getZipName();
+    bool strict() const { return m_strict; }
     Result<> collectFiles(bool onlyFiles = true);
     bool exists(const QString& filePath) const;
 
@@ -59,7 +60,7 @@ class ArchiveReader {
         Result<QByteArray> readAll();
         Result<> skip();
         Result<> writeFile(archive* out, const QString& targetFileName = "", bool notBlock = false);
-        Result<> writeFile(archive* out, const QString& targetFileName, std::optional<QDir> root, bool notBlock = false);
+        Result<> writeFile(archive* out, const QString& targetFileName, std::optional<QDir> root, bool notBlock = false, bool* outputFailed = nullptr);
 
        private:
         int readNextHeader();
@@ -77,6 +78,7 @@ class ArchiveReader {
 
    private:
     QString m_archivePath;
+    bool m_strict;
     size_t m_blockSize = 10240;
 
     QStringList m_fileNames;

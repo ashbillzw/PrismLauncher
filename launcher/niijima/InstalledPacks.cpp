@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "niijima/PackError.h"
 #include "InstalledPacks.h"
 #include "PackIndex.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 
 namespace Niijima {
 namespace {
@@ -27,29 +27,22 @@ QString packMarkerPath(const QString& root, const QString& gameRoot)
         if (directory.isEmpty())
             continue;
         const auto path = QDir(directory).filePath("niijima-pack.json");
-        if (readObject(path).value("token").toDouble() == 114514)
+        if (parsePackId(readObject(path).value("pack-id").toString()))
             return path;
     }
     return {};
 }
 
-Result<> writeInstalledPackId(const QString& root, const QString& gameRoot, quint64 packId, const QString& channel)
+Result<> verifyInstalledPackId(const QString& root, const QString& gameRoot, quint64 packId, const QString& channel)
 {
     const auto path = packMarkerPath(root, gameRoot);
     if (path.isEmpty() || packId == 0)
-        return std::unexpected(QStringLiteral("Cannot record pack-id: invalid Niijima pack marker or pack-id."));
-    auto metadata = readObject(path);
+        return std::unexpected(packError(3002, QStringLiteral("Cannot record pack-id: invalid Niijima pack marker or pack-id.")));
+    const auto metadata = readObject(path);
     if (metadata.value("channel").toString(DefaultPackChannel) != channel)
-        return std::unexpected(QStringLiteral("Installed pack channel does not match the release."));
-    if (metadata.value("pack-id").toString() == QString::number(packId))
-        return {};
-    if (metadata.contains("pack-id") && !metadata.value("pack-id").toString().isEmpty())
-        return std::unexpected(QStringLiteral("Cannot record pack-id: invalid Niijima pack marker or pack-id."));
-    metadata.insert("pack-id", QString::number(packId));
-    const auto bytes = QJsonDocument(metadata).toJson();
-    QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
-        return std::unexpected(file.errorString());
+        return std::unexpected(packError(3003, QStringLiteral("Installed pack channel does not match the release.")));
+    if (metadata.value("pack-id").toString() != QString::number(packId))
+        return std::unexpected(packError(3002, QStringLiteral("Installed pack-id does not match the release.")));
     return {};
 }
 

@@ -55,6 +55,7 @@
 #include "tasks/Task.h"
 
 #include "net/ApiRequest.h"
+#include "niijima/PackError.h"
 
 #include <QDirListing>
 #include <QFileInfo>
@@ -65,6 +66,12 @@
 InstanceImportTask::InstanceImportTask(QUrl sourceUrl, bool trustedSource, QWidget* parent, QMap<QString, QString> extraInfo)
     : m_sourceUrl(std::move(sourceUrl)), m_trustedSource(trustedSource), m_extraInfo(std::move(extraInfo)), m_parent(parent)
 {}
+
+bool InstanceImportTask::reachedGameFilesDownload() const
+{
+    const auto* creation = qobject_cast<InstanceTask*>(m_task.get());
+    return creation && creation->hasGameFilesTask();
+}
 
 bool InstanceImportTask::abort()
 {
@@ -102,13 +109,29 @@ void InstanceImportTask::downloadFromUrl()
     m_archivePath = entry->getFullPath();
 
     auto filesNetJob = makeShared<NetJob>(tr("Modpack download"), APPLICATION->network());
-    filesNetJob->addNetAction(Net::ApiRequest::makeCached(m_sourceUrl, entry));
+    auto request = Net::ApiRequest::makeCached(m_sourceUrl, entry);
+    filesNetJob->addNetAction(request);
 
     connect(filesNetJob.get(), &NetJob::succeeded, this, &InstanceImportTask::processZipPack);
     connect(filesNetJob.get(), &NetJob::progress, this, &InstanceImportTask::setProgress);
     connect(filesNetJob.get(), &Task::progressFraction, this, [this](double fraction) { setProgressFraction(0.6 * fraction); });
     connect(filesNetJob.get(), &NetJob::stepProgress, this, &InstanceImportTask::propagateStepProgress);
-    connect(filesNetJob.get(), &NetJob::failed, this, &InstanceImportTask::emitFailed);
+    connect(filesNetJob.get(), &NetJob::failed, this, [this, request](const QString& detail) {
+        const int status = request->replyStatusCode();
+        if (!m_niijimaRelease) {
+            emitFailed(detail);
+        } else if (Niijima::releaseHttpError(status)) {
+            emitFailed(installFailure(InstallFailure::ReleaseUrl, QStringLiteral("Package HTTP %1: %2").arg(status).arg(detail)));
+        } else {
+            const bool local = APPLICATION->localTest().resolve(m_sourceUrl).isLocalFile();
+            auto kind = InstallFailure::Other;
+            if (local)
+                kind = InstallFailure::Disk;
+            else if (request->error() != QNetworkReply::NoError)
+                kind = InstallFailure::Network;
+            emitFailed(installFailure(kind, detail));
+        }
+    });
     connect(filesNetJob.get(), &NetJob::aborted, this, &InstanceImportTask::emitAborted);
     m_task.reset(filesNetJob);
     filesNetJob->start();
@@ -137,7 +160,7 @@ void InstanceImportTask::processZipPack()
     qDebug() << "Attempting to create instance from" << m_archivePath;
 
     // open the zip and find relevant files in it
-    MMCZip::ArchiveReader packZip(m_archivePath);
+    MMCZip::ArchiveReader packZip(m_archivePath, m_niijimaRelease);
     qDebug() << "Attempting to determine instance type";
 
     QString root;
@@ -154,6 +177,8 @@ void InstanceImportTask::processZipPack()
             qDebug() << "Modrinth:" << true;
             m_modpackType = ModpackType::Modrinth;
             return true;
+        } else if (m_niijimaRelease) {
+            // The release index publishes Modrinth packs. Ignore instance.cfg etc. inside overrides.
         } else if (fileName == "bin/modpack.jar" || fileName == "bin/version.json") {
             // process as Technic pack
             qDebug() << "Technic:" << true;
@@ -174,18 +199,24 @@ void InstanceImportTask::processZipPack()
         QCoreApplication::processEvents();
         return false;
     };
-    if (!packZip.parse(detectInstance)) {
-        emitFailed(tr("Unable to open supplied modpack zip file."));
+    if (const auto parsed = packZip.parse(detectInstance); !parsed) {
+        const auto message = tr("Unable to open supplied modpack zip file.");
+        if (m_niijimaRelease) {
+            QFile file(m_archivePath);
+            emitFailed(installFailure(file.open(QIODevice::ReadOnly) ? InstallFailure::Archive : InstallFailure::Disk, parsed.error()));
+        } else {
+            emitFailed(message);
+        }
         return;
     }
     if (m_modpackType == ModpackType::Unknown) {
-        emitFailed(tr("Archive does not contain a recognized modpack type."));
+        emitFailed(installFailure(InstallFailure::Archive, tr("Archive does not contain a recognized modpack type.")));
         return;
     }
     setStatus(tr("Extracting modpack"));
 
     // make sure we extract just the pack
-    auto zipTask = makeShared<MMCZip::ExtractZipTask>(m_archivePath, extractDir, root);
+    auto zipTask = makeShared<MMCZip::ExtractZipTask>(m_archivePath, extractDir, root, m_niijimaRelease);
 
     auto progressStep = std::make_shared<TaskStepProgress>();
     connect(zipTask.get(), &Task::finished, this, [this, progressStep] {
@@ -195,10 +226,10 @@ void InstanceImportTask::processZipPack()
 
     connect(zipTask.get(), &Task::succeeded, this, &InstanceImportTask::extractFinished, Qt::QueuedConnection);
     connect(zipTask.get(), &Task::aborted, this, &InstanceImportTask::emitAborted);
-    connect(zipTask.get(), &Task::failed, this, [this, progressStep](QString reason) {
+    connect(zipTask.get(), &Task::failed, this, [this, progressStep, extract = zipTask.get()](QString reason) {
         progressStep->state = TaskStepState::Failed;
         stepProgress(*progressStep);
-        emitFailed(std::move(reason));
+        emitFailed(installFailure(extract->outputFailed() ? InstallFailure::Disk : InstallFailure::Archive, reason));
     });
     connect(zipTask.get(), &Task::stepProgress, this, &InstanceImportTask::propagateStepProgress);
 
@@ -258,7 +289,7 @@ void InstanceImportTask::extractFinished()
             processModrinth();
             return;
         case ModpackType::Unknown:
-            emitFailed(tr("Archive does not contain a recognized modpack type."));
+            emitFailed(installFailure(InstallFailure::Archive, tr("Archive does not contain a recognized modpack type.")));
             return;
     }
 }
@@ -385,12 +416,12 @@ void InstanceImportTask::processModrinth()
     if (modifiedName().isEmpty()) {
         const auto manifest = Json::requireObject(FS::PathCombine(m_stagingPath, "modrinth.index.json"), "modrinth.index.json");
         if (!manifest) {
-            emitFailed(manifest.error());
+            emitFailed(installFailure(QFileInfo(FS::PathCombine(m_stagingPath, "modrinth.index.json")).isReadable() ? InstallFailure::Manifest : InstallFailure::Disk, manifest.error()));
             return;
         }
         const auto packName = Json::requireString(*manifest, "name", "modrinth.index.json");
         if (!packName) {
-            emitFailed(packName.error());
+            emitFailed(installFailure(InstallFailure::Manifest, packName.error()));
             return;
         }
         setOriginalName(*packName, manifest->value("versionId").toString());
@@ -428,6 +459,7 @@ void InstanceImportTask::processModrinth()
     }
 
     instCreationTask->setCreateNewInstance(m_createNewInstance);
+    instCreationTask->setNiijimaRelease(m_niijimaRelease);
     instCreationTask->setName(modifiedName());
     instCreationTask->setOriginalName(originalName(), version());
     // if the icon was specified by user, use that. otherwise pull icon from the pack

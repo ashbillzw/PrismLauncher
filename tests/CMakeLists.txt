@@ -24,6 +24,7 @@ set(TEST_SOURCES
     Version_test.cpp
     ModrinthUrl_test.cpp
     NiijimaInstalledPacks_test.cpp
+    HomePanelDialog_test.cpp
     OptionsMigration_test.cpp
     NiijimaPackIndex_test.cpp
     NiijimaLocalTest_test.cpp
@@ -57,6 +58,8 @@ foreach(test ${TEST_NAMES})
     string(REPLACE "_test" "" display_name ${test})
     add_test(NAME ${display_name} COMMAND LauncherTests ${test})
 endforeach()
+
+set_tests_properties(HomePanelDialog PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 #[[
 # TODO(@getchoo): Use this when we can use CMake 4.4 as our minimum version....one day

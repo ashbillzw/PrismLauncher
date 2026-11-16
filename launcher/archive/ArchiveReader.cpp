@@ -119,7 +119,7 @@ Result<QByteArray> ArchiveReader::readFile(const QString& fileName)
     return goToFile(fileName).and_then([](const auto& v) -> Result<QByteArray> { return v->readAll(); });
 }
 
-static int copy_data(struct archive* ar, struct archive* aw, bool notBlock = false)
+static int copy_data(struct archive* ar, struct archive* aw, bool notBlock, bool* outputFailed)
 {
     int r = 0;
     const void* buff = nullptr;
@@ -141,6 +141,8 @@ static int copy_data(struct archive* ar, struct archive* aw, bool notBlock = fal
             r = archive_write_data_block(aw, buff, size, offset);
         }
         if (r < ARCHIVE_OK) {
+            if (outputFailed)
+                *outputFailed = true;
             qCritical() << "Failed writing data block:" << archive_error_string(aw);
             return (r);
         }
@@ -181,7 +183,7 @@ Result<> ArchiveReader::File::writeFile(archive* out, const QString& targetFileN
     return writeFile(out, targetFileName, {}, notBlock);
 };
 
-Result<> ArchiveReader::File::writeFile(archive* out, const QString& targetFileName, std::optional<QDir> root, bool notBlock)
+Result<> ArchiveReader::File::writeFile(archive* out, const QString& targetFileName, std::optional<QDir> root, bool notBlock, bool* outputFailed)
 {
     auto* entry = m_entry;
     Handle<archive_entry, archive_entry_free> entryClone;
@@ -203,15 +205,17 @@ Result<> ArchiveReader::File::writeFile(archive* out, const QString& targetFileN
         return std::unexpected{ "File is outside root" };
     }
     if (archive_write_header(out, entry) < ARCHIVE_OK) {
+        if (outputFailed)
+            *outputFailed = true;
         return std::unexpected{ QString("Failed to write header: %1").arg(archive_error_string(out)) };
     }
     if (archive_entry_size(m_entry) > 0) {
-        auto r = copy_data(m_archive.get(), out, notBlock);
+        auto r = copy_data(m_archive.get(), out, notBlock, outputFailed);
         if (r < ARCHIVE_OK) {
             qCritical() << "Failed reading data block:" << archive_error_string(out);
         }
-        if (r < ARCHIVE_WARN) {
-            return std::unexpected{ QString("Failed reading data block: %1").arg(archive_error_string(out)) };
+        if (r < ARCHIVE_WARN || (outputFailed && r < ARCHIVE_OK)) {
+            return std::unexpected{ QString("Failed copying data block: %1").arg(archive_error_string(m_archive.get()) ? error() : archive_error_string(out)) };
         }
     }
     auto r = archive_write_finish_entry(out);
@@ -219,6 +223,8 @@ Result<> ArchiveReader::File::writeFile(archive* out, const QString& targetFileN
         qCritical() << "Failed to finish writing entry:" << archive_error_string(out);
     }
     if (r < ARCHIVE_WARN) {
+        if (outputFailed)
+            *outputFailed = true;
         return std::unexpected{ QString("Failed to finish writing entry: %1").arg(archive_error_string(out)) };
     }
     return {};
@@ -235,13 +241,16 @@ Result<> ArchiveReader::parse(const std::function<Result<bool>(File*)>& doStuff)
         return std::unexpected{ QString("Failed to open archive file %1: %2").arg(m_archivePath, f->error()) };
     }
 
-    while (f->readNextHeader() == ARCHIVE_OK) {
+    int status;
+    while ((status = f->readNextHeader()) == ARCHIVE_OK) {
         TRY_INTO(const bool shouldStop, doStuff(f.get()))
         if (shouldStop) {
             break;
         }
     }
 
+    if (m_strict && status < ARCHIVE_OK)
+        return std::unexpected{QString("Invalid archive header in %1: %2").arg(m_archivePath, f->error())};
     archive_read_close(a);
     return {};
 }

@@ -93,7 +93,7 @@ auto ExtractZipTask::extractZip() -> Result<>
             // only create the folder if is not outside
             FS::ensureFilePathExists(target_file_path);
 
-            if (const auto writeResult = f->writeFile(ext, target_file_path, target); !writeResult) {
+            if (const auto writeResult = f->writeFile(ext, target_file_path, target, false, m_input.strict() ? &m_outputFailed : nullptr); !writeResult) {
                 return std::unexpected(tr("Failed to extract file %1 to %2: %3").arg(original_name, target_file_path, writeResult.error()));
             }
             extracted.append(target_file_path);

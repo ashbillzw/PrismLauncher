@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "niijima/PackError.h"
 #include "NiijimaHomeWindow.h"
 #include "dialogs/MigrationDialog.h"
 #include <QFrame>
@@ -59,7 +60,9 @@
 #endif
 
 namespace {
+constexpr int kWindowInset = 1;
 constexpr int kTitleBarHeight = 46;
+constexpr int kTitleBarBottom = kWindowInset + kTitleBarHeight;
 
 #ifdef Q_OS_WIN
 QString droppedPackFile(const QMimeData* data)
@@ -258,11 +261,11 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QPushButton#homeMenu:hover, QPushButton#minimize:hover { background: rgba(255, 255, 255, 35); }
         QPushButton#homeMenu:pressed, QPushButton#minimize:pressed { background: rgba(255, 255, 255, 60); }
         QPushButton#close:hover { background: #c42b1c; color: white; }
-        QMenu#channelMenu { background: #fffdf9; color: #322b23; border: 1px solid #e3d6c3; border-top: 3px solid #f39801; padding: 4px; }
+        QMenu#channelMenu { background: #eee5d8; color: #322b23; border: 1px solid #e3d6c3; border-top: 3px solid #f39801; padding: 4px; }
         QMenu#channelMenu::item { padding: 7px 18px; border-radius: 4px; }
         QMenu#channelMenu::item:selected { background: #fff1d8; color: #48321a; }
         QMenu#channelMenu::item:disabled { color: #a49889; }
-        QMessageBox { background: #fffcf7; }
+        QMessageBox { background: #eee5d8; }
         QMessageBox QPushButton:default { background: #f39801; color: #352c22; }
         QProgressBar { border: 0; background: #f9dca8; color: #452800; text-align: center; font-size: 12px; }
         QProgressBar::chunk { background: #ecb354; }
@@ -280,7 +283,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         QWidget#homeBody QPushButton:disabled, QWidget#homeBody QPushButton#primary:disabled { color: #aab0ba; border-color: rgba(255, 255, 255, 35); background: rgba(37, 43, 53, 145); }
     )"));
     auto* root = new QVBoxLayout(this);
-    root->setContentsMargins(1, 1, 1, 1);
+    root->setContentsMargins(kWindowInset, kWindowInset, kWindowInset, kWindowInset);
     root->setSpacing(0);
     auto* titleBar = new QWidget(this);
     titleBar->setFixedHeight(kTitleBarHeight);
@@ -301,7 +304,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     titleLayout->addWidget(menuButton);
     auto* menu = new QMenu(menuButton);
     menu->setObjectName("channelMenu");
-    auto* migrate = menu->addAction(QStringLiteral("迁移设置"), this, [this] {
+    auto* migrate = menu->addAction(QStringLiteral("迁移配置"), this, [this] {
         if (m_migrationOffer)
             m_migrationOffer->close();
         openMigration(m_selectedInstance);
@@ -318,7 +321,7 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
         const bool idle = !m_task || !m_task->isRunning();
         migrate->setEnabled(idle && instance && !Niijima::migrationFiles(instance->gameRoot()).isEmpty());
         channelAction->setEnabled(idle);
-        channelAction->setText(m_channel == Niijima::DefaultPackChannel ? QStringLiteral("管理员cdk") : QStringLiteral("返回普通渠道"));
+        channelAction->setText(m_channel == Niijima::DefaultPackChannel ? QStringLiteral("管理员cdk") : QStringLiteral("重置渠道"));
         menu->popup(menuButton->mapToGlobal(QPoint(menuButton->width() - menu->sizeHint().width(), menuButton->height())));
     });
     auto* minimize = new CaptionButton(CaptionGlyph::Minimize, titleBar);
@@ -367,12 +370,6 @@ NiijimaHomeWindow::NiijimaHomeWindow(QWidget* parent) : QWidget(parent)
     m_status->setStyleSheet("font-size: 14px;");
     layout->addWidget(m_status);
     m_status->hide();
-    m_details = new QLabel(body);
-    m_details->setTextFormat(Qt::PlainText);
-    m_details->setStyleSheet("font-size: 12px; color: #e1e6ed;");
-    m_details->setWordWrap(true);
-    layout->addWidget(m_details);
-    m_details->hide();
     auto* actions = new QHBoxLayout();
     actions->setSpacing(12);
     auto* prism = new QPushButton(APPLICATION->prismLogo(), QStringLiteral("进入 Prism"), body);
@@ -449,12 +446,8 @@ void NiijimaHomeWindow::setPackChannel(const QString& channel)
 void NiijimaHomeWindow::enterChannelCode()
 {
     const auto code = requestHomeChannelCode(this);
-    if (!code)
+    if (!code || code->isEmpty())
         return;
-    if (code->isEmpty()) {
-        showHomeChannelError(this, QStringLiteral("cdk无效"));
-        return;
-    }
     cancelUpdateCheck();
     auto* task = new Niijima::PackIndexTask(packIndexUrl(), {}, this);
     task->lookupCode(*code);
@@ -559,8 +552,8 @@ Result<> NiijimaHomeWindow::savePackId(quint64 packId)
 {
     const auto* instance = APPLICATION->instances()->getInstanceById(m_committedId);
     if (!instance)
-        return std::unexpected(QStringLiteral("Cannot record pack-id: installed instance was not found."));
-    return Niijima::writeInstalledPackId(instance->instanceRoot(), instance->gameRoot(), packId, m_channel);
+        return std::unexpected(Niijima::packError(3001, QStringLiteral("Cannot record pack-id for missing instance: %1").arg(m_committedId)));
+    return Niijima::verifyInstalledPackId(instance->instanceRoot(), instance->gameRoot(), packId, m_channel);
 }
 
 void NiijimaHomeWindow::paintEvent(QPaintEvent*)
@@ -570,7 +563,7 @@ void NiijimaHomeWindow::paintEvent(QPaintEvent*)
     QPainterPath clip;
     clip.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
     p.setClipPath(clip);
-    const QRectF body(0, kTitleBarHeight, width(), height() - kTitleBarHeight);
+    const QRectF body(0, kTitleBarBottom, width(), height() - kTitleBarBottom);
     p.fillRect(rect(), QColor("#26313f"));
     if (!m_frostedBackground.isNull()) {
         // Center-crop to cover the body while preserving the artwork's aspect ratio.
@@ -583,7 +576,7 @@ void NiijimaHomeWindow::paintEvent(QPaintEvent*)
     }
 
     // Uniform blur only: no tint or regional contrast masks over the background.
-    p.fillRect(QRect(0, 0, width(), kTitleBarHeight), QColor("#f39801"));
+    p.fillRect(QRect(0, 0, width(), kTitleBarBottom), QColor("#f39801"));
     p.setClipping(false);
     p.setPen(QPen(QColor("#d39b45"), 1));
     p.drawPath(clip);
@@ -611,39 +604,68 @@ void NiijimaHomeWindow::dropEvent(QDropEvent* event)
 
 void NiijimaHomeWindow::mousePressEvent(QMouseEvent* e)
 {
-    if (e->button() == Qt::LeftButton && e->position().y() < kTitleBarHeight && windowHandle())
+    if (e->button() == Qt::LeftButton && e->position().y() < kTitleBarBottom && windowHandle())
         windowHandle()->startSystemMove();
     QWidget::mousePressEvent(e);
 }
 void NiijimaHomeWindow::closeEvent(QCloseEvent* e)
 {
-    if (m_task && m_task->isRunning()) {
-        QMessageBox::information(this, QStringLiteral("任务进行中"), QStringLiteral("请等待任务结束，或先取消当前任务。"));
+    if (m_import && m_task && m_task->isRunning()) {
         e->ignore();
+        if (m_closeAfterSkip || m_import->discarded())
+            return;
+        if (m_import->reachedGameFilesDownload()) {
+            // abort() may finish synchronously; set the intent before using the ordinary Skip action.
+            m_closeAfterSkip = true;
+            setEnabled(false);
+            if (m_import->isRunning())
+                m_task->abort();
+            return;
+        }
+        if (isHidden()) {
+            abortInstallAndClose();
+            return;
+        }
+        if (m_installExitPrompt)
+            return;
+        auto* prompt = makeInstallExitPrompt(this);
+        m_installExitPrompt = prompt;
+        prompt->setAttribute(Qt::WA_DeleteOnClose);
+        connect(prompt, &QDialog::finished, this, [this](int result) {
+            if (result == QMessageBox::Yes)
+                abortInstallAndClose();
+        });
+        prompt->open();
         return;
+    }
+    if (auto* lookup = qobject_cast<Niijima::PackIndexTask*>(m_task.data())) {
+        // A cancelled lookup must neither switch channels nor start installing.
+        disconnect(lookup, nullptr, this, nullptr);
+        m_task = nullptr;
+        lookup->abort();
     }
     cancelUpdateCheck();
     e->accept();
     emit isClosing();
 }
-void NiijimaHomeWindow::exitWithPrism()
+void NiijimaHomeWindow::abortInstallAndClose()
 {
     cancelUpdateCheck();
     auto* task = m_task.data();
-    if (!task || !task->isRunning()) {
+    if (!m_import || !task || !task->isRunning()) {
         close();
         return;
     }
+    if (m_import->discarded())
+        return;
+    setEnabled(false);
     // Let the active worker release its files before destroying the home window.
     disconnect(task, nullptr, this, nullptr);
     connect(task, &Task::finished, this, [this] {
         m_task = nullptr;
         close();
     }, Qt::QueuedConnection);
-    if (m_import)
-        m_import->discard();
-    else
-        task->abort();
+    m_import->discard();
 }
 
 static Niijima::InstalledPackSelection installedSourceExcept(const QString& excluded, const QString& channel)
@@ -672,7 +694,7 @@ void NiijimaHomeWindow::offerMigration()
     if (!target || Niijima::migrationFiles(target->gameRoot()).isEmpty())
         return;
     const auto targetId = target->id();
-    m_migrationOffer = migrationOffer(this, kTitleBarHeight + 1, [this, targetId] { openMigration(targetId); });
+    m_migrationOffer = migrationOffer(this, kTitleBarBottom, [this, targetId] { openMigration(targetId); });
 }
 
 void NiijimaHomeWindow::openMigration(const QString& targetId)
@@ -707,8 +729,6 @@ void NiijimaHomeWindow::refresh()
     m_installStatus->clear();
     m_cancel->hide();
     m_progress->hide();
-    m_details->clear();
-    m_details->hide();
     m_status->clear();
     m_status->hide();
 }
@@ -797,7 +817,7 @@ void NiijimaHomeWindow::refreshPackVersion()
         version = instance->getManagedPackVersionName().trimmed();
     version = Niijima::channelVersion(version, m_channel);
     if (version.isEmpty()) {
-        version = QStringLiteral("未知");
+        version = QStringLiteral("读取错误");
     } else if (!version.startsWith(QLatin1Char('v'), Qt::CaseInsensitive)) {
         version.prepend(QLatin1Char('v'));
     }
@@ -805,13 +825,11 @@ void NiijimaHomeWindow::refreshPackVersion()
     m_packVersion->show();
 }
 
-void NiijimaHomeWindow::showDownloadError(const QString& message, const QString& details)
+void NiijimaHomeWindow::showDownloadError(const QString& message)
 {
     refresh();
     m_status->setText(message);
     m_status->show();
-    m_details->setText(details);
-    m_details->setVisible(!details.isEmpty());
 }
 
 void NiijimaHomeWindow::launchInstance(MinecraftInstance* inst)
@@ -863,20 +881,7 @@ void NiijimaHomeWindow::primaryAction()
         startImport(m_update.release->packUrl);
         return;
     }
-    const auto validDownloadUrl = [](const QUrl& url) {
-        const bool local = url.host() == "localhost" || url.host() == "127.0.0.1" || url.host() == "::1";
-        return url.isValid() && !url.host().isEmpty() && (url.scheme() == "https" || (local && url.scheme() == "http")) &&
-               url.userInfo().isEmpty() && !url.hasFragment();
-    };
-    const auto indexSetting = settings->getSetting("NiijimaPackIndexUrl");
-    auto indexUrl = indexSetting->get().toString().trimmed();
-    if (indexUrl.isEmpty())
-        indexUrl = indexSetting->defValue().toString();
-    if (!validDownloadUrl(QUrl(indexUrl))) {
-        showDownloadError(QStringLiteral("整合包索引地址无效"), QStringLiteral("请检查配置文件中的 NiijimaPackIndexUrl。"));
-        return;
-    }
-    startReleaseLookup(QUrl(indexUrl), settings->get("NiijimaPackVersionId").toString().trimmed());
+    startReleaseLookup(packIndexUrl(), settings->get("NiijimaPackVersionId").toString().trimmed());
 }
 
 void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& requestedId)
@@ -886,8 +891,6 @@ void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& 
     m_task = task;
     m_primary->setEnabled(false);
     m_primary->setText(QStringLiteral("加载中"));
-    m_details->clear();
-    m_details->hide();
     m_status->clear();
     m_status->hide();
     m_progress->setRange(0, 0);
@@ -910,7 +913,7 @@ void NiijimaHomeWindow::startReleaseLookup(const QUrl& indexUrl, const QString& 
             m_status->setText(QStringLiteral("已取消"));
             m_status->show();
         } else {
-            showDownloadError(QStringLiteral("获取整合包版本失败，可重试。"), reason);
+            showDownloadError(reason);
         }
     });
     task->start();
@@ -926,6 +929,7 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     // A configurable URL is not automatically a trusted distribution source.
     auto* importer = new InstanceImportTask(url, false, this);
     importer->setCreateNewInstance(true);
+    importer->setNiijimaRelease(true);
     importer->setIcon(QStringLiteral("default"));
     importer->setGroup(QStringLiteral("新岛铁道"));
     m_import = importer;
@@ -938,8 +942,6 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     m_primary->setEnabled(false);
     m_primary->setText(QStringLiteral("正在安装"));
     m_transfers.clear();
-    m_details->clear();
-    m_details->hide();
     m_progress->setRange(0, 1000);
     m_progress->setValue(url.isLocalFile() ? 600 : 0);
     m_progress->setFormat(QStringLiteral("%p%"));
@@ -965,6 +967,8 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     connect(importer, &InstanceImportTask::extractedPack, this, [this] { m_progress->setFormat(QStringLiteral("%p%")); });
     connect(task, &Task::stepProgress, this, &NiijimaHomeWindow::updateTransferText);
     connect(task, &Task::finished, this, [this, task, release] {
+        if (m_installExitPrompt)
+            m_installExitPrompt->reject();
         const bool success = task->wasSuccessful();
         const bool cancelled = task->getState() == Task::State::AbortedByUser;
         const auto reason = task->failReason();
@@ -973,18 +977,28 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
         m_transfers.clear();
         m_task = nullptr;
         m_import = nullptr;
+        const bool closeAfterSkip = m_closeAfterSkip;
+        if (closeAfterSkip) {
+            m_closeAfterSkip = false;
+            setEnabled(true);
+        }
         if (success && release) {
             if (const auto saved = savePackId(release->id); !saved) {
-                showDownloadError(QStringLiteral("安装失败，可重试。"), saved.error());
+                showDownloadError(saved.error());
                 task->deleteLater();
                 return;
             }
+        }
+        if (closeAfterSkip && success) {
+            task->deleteLater();
+            QTimer::singleShot(0, this, &QWidget::close);
+            return;
         }
         refresh();
         if (success)
             offerMigration();
         if (!success) {
-            m_status->setText(cancelled ? QStringLiteral("已取消安装") : QStringLiteral("安装失败，可重试。"));
+            m_status->setText(cancelled ? QStringLiteral("已取消安装") : reason);
             if (!cancelled)
                 QMessageBox::warning(this, QStringLiteral("安装失败"), reason);
             m_status->show();

@@ -21,6 +21,10 @@ class InstanceTask : public Task {
     InstanceTask() = default;
     ~InstanceTask() override = default;
 
+    enum class InstallFailure { Network, Disk, Other, Archive, Manifest, ReleaseUrl };
+    void setNiijimaRelease(bool release) { m_niijimaRelease = release; }
+    QString installFailure(InstallFailure kind, const QString& detail) const;
+
     void setParentSettings(SettingsObject* settings) { m_globalSettings = settings; }
 
     void setStagingPath(const QString& stagingPath) { m_stagingPath = stagingPath; }
@@ -38,6 +42,7 @@ class InstanceTask : public Task {
 
     void discard();
     bool discarded() const { return m_discarded; }
+    bool hasGameFilesTask() const { return bool(m_gameFilesTask); }
 
     bool shouldOverride() const { return m_overrideExisting; }
 
@@ -67,6 +72,7 @@ class InstanceTask : public Task {
     QString m_targetDir;
     QString m_stagingPath;
 
+    bool m_niijimaRelease = false;
     bool m_discarded = false;
     bool m_overrideExisting = false;
     bool m_confirmUpdate = true;
@@ -81,5 +87,6 @@ class InstanceTask : public Task {
     QStringList m_filesToRemove;
     ShouldDeleteSaves m_shouldDeleteSaves{};
 
+    bool m_skippingGameFiles = false;
     Task::Ptr m_gameFilesTask;
 };

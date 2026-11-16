@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include <QJsonArray>
+#include <QJsonObject>
+#include <QSet>
+#include <optional>
 #include <QStringList>
 #include "PackIndex.h"
 
@@ -11,10 +14,9 @@ struct MigrationSource {
     QString channel = DefaultPackChannel;
 };
 
-enum class MigrationError { SameInstance, MissingOptions, MissingDefaults, FileError };
-
 QJsonArray migrationFiles(const QString& gameDir);
-MigrationSource migrationSource(const QString& directory);
+MigrationSource migrationSource(const QString& directory, const QJsonArray& files);
+bool migrationItemAvailable(const QString& game, const QJsonObject& rule);
 QStringList legacyOptionsVersions();
-Result<void, MigrationError> migrateSettings(const MigrationSource& source, const QString& legacyVersion, const QString& targetDir);
+Result<> migrateSettings(const MigrationSource& source, const QString& legacyVersion, const QString& targetDir, const std::optional<QSet<QString>>& selected = std::nullopt);
 } // namespace Niijima

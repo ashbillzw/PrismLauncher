@@ -5,8 +5,10 @@
 #include <functional>
 #include <optional>
 #include "niijima/OptionsMigration.h"
+class QMessageBox;
 class QLabel;
 class QComboBox;
+class QCheckBox;
 class QPushButton;
 class QFrame;
 
@@ -18,6 +20,7 @@ public:
 protected:
     QLabel* m_title;
 };
+QMessageBox* makeInstallExitPrompt(QWidget* home);
 std::optional<QString> requestHomeChannelCode(QWidget* home);
 void showHomeChannelError(QWidget* home, const QString& reason);
 
@@ -25,10 +28,14 @@ class MigrationDialog final : public HomePanelDialog {
 public:
     MigrationDialog(QWidget* home, QString targetGameDir, Niijima::MigrationSource automatic, QString version, std::function<bool()> busy);
 private:
-    void apply(const Niijima::MigrationSource& source, const QString& version = {});
+    void chooseItems(const Niijima::MigrationSource& source);
+    void updateSelection();
+    void apply();
     void selectFolder();
     QString m_target;
-    Niijima::MigrationSource m_manual;
+    Niijima::MigrationSource m_source;
+    QJsonArray m_files;
+    QList<QCheckBox*> m_items;
     std::function<bool()> m_busy;
     QLabel* m_error;
     QLabel* m_autoVersion;

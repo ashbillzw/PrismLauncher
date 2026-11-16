@@ -46,6 +46,7 @@ class InstanceImportTask : public InstanceTask {
     explicit InstanceImportTask(QUrl sourceUrl, bool trustedSource, QWidget* parent = nullptr, QMap<QString, QString> extraInfo = {});
     ~InstanceImportTask() override = default;
     bool abort() override;
+    bool reachedGameFilesDownload() const;
     void setCreateNewInstance(bool createNew) { m_createNewInstance = createNew; }
 
    signals:

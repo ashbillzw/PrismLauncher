@@ -2,6 +2,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTest>
+#include <QTemporaryDir>
+#include "InstanceImportTask.h"
+#include "archive/ArchiveWriter.h"
+#include "niijima/PackError.h"
 #include <limits>
 
 #include "niijima/PackIndex.h"
@@ -21,15 +25,48 @@ class NiijimaPackIndexTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void releaseImportFailures()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const auto path = temp.filePath("release.zip");
+        const auto expect = [&](const QString& message) {
+            InstanceImportTask task(QUrl::fromLocalFile(path), false);
+            task.setNiijimaRelease(true);
+            task.setStagingPath(temp.path());
+            task.start();
+            QTRY_VERIFY(task.isFinished());
+            QCOMPARE(task.failReason(), message);
+        };
+        expect(QStringLiteral("无法读取或写入安装文件"));
+        QFile broken(path);
+        QVERIFY(broken.open(QIODevice::WriteOnly));
+        broken.write("bad zip");
+        broken.close();
+        expect(QStringLiteral("发生了错误（错误码：5001）"));
+        MMCZip::ArchiveWriter writer(path);
+        QVERIFY(writer.open());
+        QVERIFY(writer.addFile(QStringLiteral("modrinth.index.json"), QByteArray("{")));
+        QVERIFY(writer.close());
+        expect(QStringLiteral("发生了错误（错误码：5002）"));
+        QVERIFY(Niijima::releaseHttpError(403));
+        QVERIFY(Niijima::releaseHttpError(404));
+        QVERIFY(Niijima::releaseHttpError(500));
+        QVERIFY(!Niijima::releaseHttpError(0));
+        QVERIFY(!Niijima::releaseHttpError(429));
+    }
+
     void namedChannelUsesItsOwnIds()
     {
-        const QByteArray data = R"({"cdks":{"sample":"future"},"channels":{
+        const QByteArray data = R"({"cdks":{"sample":"future","unused":"ashbill","broken":"unknown"},"channels":{
             "master":{"58":{"version":"1.6","file":"base.zip"}},
             "admin":{"1":{"version":"1.6.a","file":"admin.zip"}},
             "future":{"1":{"version":"custom","file":"future.zip"}},
             "ashbill":{}}})";
         QCOMPARE(*Niijima::channelForCode(data, "sample"), QString("future"));
-        QVERIFY(!Niijima::channelForCode(data, "wrong"));
+        QCOMPARE(Niijima::channelForCode(data, "wrong").error(), QStringLiteral("cdk无效"));
+        QCOMPARE(Niijima::channelForCode(data, "unused").error(), QStringLiteral("发生了错误（错误码：1005）"));
+        QCOMPARE(Niijima::channelForCode(data, "broken").error(), QStringLiteral("发生了错误（错误码：1004）"));
         QCOMPARE(Niijima::parsePackIndex(data, indexUrl)->id, quint64(58));
         QCOMPARE(Niijima::parsePackIndex(data, indexUrl, "1", "admin")->version, QString("1.6.a"));
         QCOMPARE(Niijima::parsePackIndex(data, indexUrl, {}, "future")->packUrl.fileName(), QString("future.zip"));
@@ -168,6 +205,16 @@ class NiijimaPackIndexTest : public QObject {
     {
         QFETCH(QString, file);
         QVERIFY(!Niijima::parsePackIndex(oneRelease(file), indexUrl));
+    }
+
+    void playerErrorOmitsTechnicalDetails()
+    {
+        const auto release = Niijima::parsePackIndex(oneRelease("../private.zip"), indexUrl);
+        QVERIFY(!release);
+        QCOMPARE(release.error(), QStringLiteral("发生了错误（错误码：1009）"));
+        const auto lookup = Niijima::channelForCode("{", "sample");
+        QVERIFY(!lookup);
+        QCOMPARE(lookup.error(), QStringLiteral("发生了错误（错误码：1002）"));
     }
 
     void rejectsMalformedDocuments()

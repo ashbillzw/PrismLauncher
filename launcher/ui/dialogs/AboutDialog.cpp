@@ -61,8 +61,8 @@ QString getCreditsHtml()
                                                     QObject::tr("MultiMC Developers"), QObject::tr("With special thanks to"));
     if (niijima) {
         return QStringLiteral("<center><h3>NiijimaLauncher</h3>"
-                              "<p>AshBill</p><p>GPT-6 Astra（AI 开发协作）</p>"
-                              "<p>基于 Prism Launcher，保留原项目作者与致谢。</p></center>") + upstreamCredits;
+                              "<p>AshBill</p><p>GPT-6 Astra</p>"
+                              "<p>基于 Prism Launcher。</p></center>") + upstreamCredits;
     }
     return upstreamCredits;
 }

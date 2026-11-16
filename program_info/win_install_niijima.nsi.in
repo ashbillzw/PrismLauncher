@@ -43,6 +43,22 @@ InstallDirRegKey HKCU "Software\NiijimaLauncher" "InstallDir"
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Japanese"
 
+LangString StartMenuShortcut ${LANG_SIMPCHINESE} "开始菜单快捷方式"
+LangString StartMenuShortcut ${LANG_ENGLISH} "Start Menu Shortcut"
+LangString StartMenuShortcut ${LANG_JAPANESE} "スタートメニューのショートカット"
+
+LangString DesktopShortcut ${LANG_SIMPCHINESE} "桌面快捷方式"
+LangString DesktopShortcut ${LANG_ENGLISH} "Desktop Shortcut"
+LangString DesktopShortcut ${LANG_JAPANESE} "デスクトップのショートカット"
+
+LangString PrismFolderConflict ${LANG_SIMPCHINESE} "此文件夹已安装 Prism Launcher，请选择其他文件夹。"
+LangString PrismFolderConflict ${LANG_ENGLISH} "This folder contains official Prism Launcher. Choose a separate NiijimaLauncher installation folder."
+LangString PrismFolderConflict ${LANG_JAPANESE} "このフォルダーには Prism Launcher がインストールされています。別のフォルダーを選択してください。"
+
+LangString Needs64BitWindows ${LANG_SIMPCHINESE} "此安装程序需要 64 位 Windows。"
+LangString Needs64BitWindows ${LANG_ENGLISH} "This installer requires 64-bit Windows."
+LangString Needs64BitWindows ${LANG_JAPANESE} "このインストーラーには 64 ビット版 Windows が必要です。"
+
 VIProductVersion "@Launcher_VERSION_NAME4@"
 VIFileVersion "@Launcher_VERSION_NAME4@"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "@Launcher_DisplayName@"
@@ -54,7 +70,7 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "@Launcher_VERSION_NAME4@
 Function ValidateInstallDir
   ; Shared Qt DLLs make mixing a fork into an official Prism directory unsafe.
   IfFileExists "$INSTDIR\prismlauncher.exe" 0 +3
-    MessageBox MB_OK|MB_ICONSTOP "This folder contains official Prism Launcher. Choose a separate NiijimaLauncher installation folder." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(PrismFolderConflict)" /SD IDOK
     Abort
 FunctionEnd
 
@@ -87,13 +103,13 @@ Section "@Launcher_DisplayName@" Core
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0x1000, p 0, p 0)'
 SectionEnd
 
-Section "Start Menu Shortcut" StartMenu
+Section "$(StartMenuShortcut)" StartMenu
   SetShellVarContext current
   CreateDirectory "$SMPROGRAMS\NiijimaLauncher"
   CreateShortcut "$SMPROGRAMS\NiijimaLauncher\@Launcher_DisplayName@.lnk" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" "" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" 0
 SectionEnd
 
-Section /o "Desktop Shortcut" Desktop
+Section /o "$(DesktopShortcut)" Desktop
   SetShellVarContext current
   CreateShortcut "$DESKTOP\@Launcher_DisplayName@.lnk" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" "" "$INSTDIR\@Launcher_APP_BINARY_NAME@.exe" 0
 SectionEnd
@@ -129,7 +145,7 @@ SectionEnd
 Function .onInit
   SetShellVarContext current
   ${IfNot} ${RunningX64}
-    MessageBox MB_OK|MB_ICONSTOP "This installer requires 64-bit Windows." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "$(Needs64BitWindows)" /SD IDOK
     Abort
   ${EndIf}
 FunctionEnd

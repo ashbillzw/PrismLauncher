@@ -222,3 +222,14 @@ pwsh -File tools/niijima/download_mirror_windows.ps1 -Output 'D:/mydata/Agents/M
 ### 2026-10-29 用户确认的范围
 
 用户接受保留其他平台，以便未来使用；要求不夹带其他 Minecraft 版本。已核对组件仅 `net.minecraft 1.20.1`、`net.minecraftforge 47.4.6`、`org.lwjgl3 3.3.1`。3,746 文件中有 3,575 个资源对象（651,642,397 字节）和 171 个本体/索引/库文件（116,068,395 字节）。明确 Linux/macOS 文件 37 个、5,291,298 字节，另有 Windows 不同架构；这是指定版本的完整镜像，不是 Windows x64 最小集。声音、语言等资源本来按索引拆分为大量小文件，数量不是模组数。
+
+
+### 2026-11-17　统一分发根（取代此前正式地址及示例配置）
+
+Windows 新岛启动器在数据目录的 `niijimalauncher.cfg` 读取 `NiijimaDistributionRoot`，缺省为 `https://mc.ashbill.com/launcher/`。可填其他 HTTPS 目录，末尾斜杠可省；更改后重启启动器。首页从根下 `packs/latest.json` 读取各渠道，ZIP 相对于索引；镜像使用 `niijima-mirror/meta/v1/`、`niijima-mirror/files/` 和 `niijima-mirror/assets/`。未来的迁移参考文件使用同一应用入口 `niijimaDistributionRoot()` 下的 `migration/`。截至本次改动，网络迁移尚未接入，线上未发布整合包索引。网站 v3 与第三方登录服务保留各自入口。
+
+已保存的旧官方索引或镜像默认 URL 在启动时恢复为从根推导，手动指定的独立端点和原有 Prism 上游回退仍适用。对元数据和缓存中使用旧、新官方分发前缀的绝对下载地址，请求时也按有效根定位。本地测试 JSON 中的 packs 与 mirror 继续映射到本地文件。
+
+`prepare_mirror.py` 与 `configure_mirror.py` 的缺省公开镜像地址为 `https://mc.ashbill.com/launcher/niijima-mirror/`。发布时保留现有 Java 运行时组件；维护已发布镜像时从完整根索引核对所有组件和版本文件，对改动后字节重算 SHA-256，先发布版本、组件索引，最后发布根索引。
+
+本机与 NAS 当前 Minecraft、Forge、LWJGL、Java 17 共 4 个组件的 9 个 JSON 均已改址，175 个下载 URL；新的索引 SHA-256 为 `112d0e1810dc62df2a4abec3d941cc1e169f53348de4bcebf36e1455b5075854`。原站点配置备份 `/home/ashbill/launcher-alias.x3aZFI1z/original.conf`，原线上元数据备份 `/home/ashbill/launcher-meta-m7pkr7rb/v1/`。公网已比对新旧入口的根索引、Java 版本元数据、一个 files 对象及一个 assets 对象。

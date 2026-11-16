@@ -103,6 +103,26 @@ private slots:
         QCOMPARE(config.testWarningText, text);
     }
 
+    void configurableDistributionRoot()
+    {
+        Niijima::LocalTest config;
+        config.root = Niijima::distributionRoot("https://mirror.example/custom");
+        QCOMPARE(config.root, QString("https://mirror.example/custom/"));
+        QCOMPARE(Niijima::distributionRoot("file:///tmp"), Niijima::distributionRoot());
+        const QUrl payload("https://mc.ashbill.com/launcher/niijima-mirror/files/game.jar");
+        const QUrl rebased(config.root + "niijima-mirror/files/game.jar");
+        QCOMPARE(config.resolve(payload), rebased);
+        QCOMPARE(config.resolve(QUrl("https://mc1.ashbill.com:25572/synology-root/minecraft/niijima-launcher/niijima-mirror/files/game.jar")), rebased);
+        const QUrl outside("https://mc.ashbill.com/v3/index.html");
+        QCOMPARE(config.resolve(outside), outside);
+        auto nested = config;
+        nested.root = Niijima::distributionRoot("https://mc.ashbill.com/launcher/testing/");
+        QCOMPARE(nested.resolve(nested.resolve(payload)), nested.resolve(payload));
+        config.enabled = true;
+        config.mirror = QDir::tempPath();
+        QCOMPARE(config.resolve(payload), QUrl::fromLocalFile(QDir(config.mirror).filePath("files/game.jar")));
+    }
+
     void missingAndInvalidConfig()
     {
         QTemporaryDir temporary;

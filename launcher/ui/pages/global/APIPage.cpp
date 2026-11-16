@@ -50,6 +50,7 @@
 #include "Application.h"
 #include "BuildConfig.h"
 #include "net/PasteUpload.h"
+#include "settings/Setting.h"
 #include "settings/SettingsObject.h"
 #include "tools/BaseProfiler.h"
 
@@ -194,9 +195,18 @@ void APIPage::applySettings()
     upgradeToHTTPS(fmlLibsURL);
 
     s->set("FallbackMRBlockedMods", ui->FallbackMRBlockedMods->checkState());
-    s->set("MetaURLOverride", metaURL.toString());
+    auto saveEndpoint = [&s](const QString& key, const QUrl& value) {
+        const auto setting = s->getSetting(key);
+        if (setting->get() != value.toString()) {
+            if (value.toString() == setting->defValue().toString())
+                setting->reset();
+            else
+                setting->set(value.toString());
+        }
+    };
+    saveEndpoint("MetaURLOverride", metaURL);
     s->set("MetaRefreshOnLaunch", ui->metaRefreshOnLaunchCB->checkState() == Qt::Checked);
-    s->set("ResourceURLOverride", resourceURL.toString());
+    saveEndpoint("ResourceURLOverride", resourceURL);
     s->set("LegacyFMLLibsURLOverride", fmlLibsURL.toString());
     QString flameKey = ui->flameKey->text();
     s->set("FlameKeyOverride", flameKey);

@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 from urllib.parse import urlsplit
-from prepare_mirror import Builder, encoded, sha
+from prepare_mirror import Builder, DEFAULT_MIRROR_URL, encoded, sha
 
 
 class OfflineBuilder(Builder):
@@ -38,17 +38,20 @@ def configure(bundle, base_url):
         verified['base_url'] = base_url
         verified['manifest_sha256'] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
         marker_path.write_bytes(encoded(verified))
-    settings = 'NiijimaPackUrl='+base_url+'packs/pack.zip\nMetaURLOverride='+base_url+'meta/v1/\nResourceURLOverride='+base_url+'assets/\n'
+    if base_url.endswith('/niijima-mirror/'):
+        settings = 'NiijimaDistributionRoot=' + base_url.removesuffix('niijima-mirror/') + '\n'
+    else:
+        settings = f'MetaURLOverride={base_url}meta/v1/\nResourceURLOverride={base_url}assets/\n'
     (bundle / 'launcher-settings.txt').write_text(settings, encoding='utf-8')
     (bundle / 'deployment-status.json').write_bytes(encoded({'metadata_configured':True,'payload_complete':bool(verified),'base_url':base_url,'pack_included':False}))
     print('Frozen metadata regenerated offline; existing resource files were preserved.')
-    print('\nFinal launcher settings (pack.zip is supplied separately):\n'+settings)
+    print('\nFinal launcher settings:\n'+settings)
     return after
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle', type=Path, default=Path(__file__).resolve().parent)
-    parser.add_argument('--base-url', required=True)
+    parser.add_argument('--base-url', default=DEFAULT_MIRROR_URL)
     args = parser.parse_args()
     configure(args.bundle.resolve(), args.base_url)

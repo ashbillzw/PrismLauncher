@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, quote, unquote
 
 META = 'https://meta.prismlauncher.org/v1/'
+DEFAULT_MIRROR_URL = 'https://mc.ashbill.com/launcher/niijima-mirror/'
 
 def encoded(data):
     return (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
@@ -143,7 +144,7 @@ class Builder:
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',type=Path,required=True)
-    p.add_argument('--base-url',required=True,help='HTTPS public root mapped to publish/, e.g. https://server/niijima/')
+    p.add_argument('--base-url',default=DEFAULT_MIRROR_URL,help='HTTPS public mirror root mapped to publish/')
     p.add_argument('--minecraft',default='1.20.1');p.add_argument('--forge',default='47.4.6')
     p.add_argument('--proxy');p.add_argument('--download-files',action='store_true')
     args=p.parse_args()

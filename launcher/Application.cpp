@@ -659,11 +659,17 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         // Provide a fallback for migration from PolyMC
         m_settings.reset(new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "polymc.cfg", "multimc.cfg" }, this));
 
+        const bool niijima = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher");
+        if (niijima) {
+            m_localTest = Niijima::LocalTest::load(applicationDirPath() + QStringLiteral("/niijima-local-test.json"));
+            auto root = m_settings->registerSetting("NiijimaDistributionRoot", Niijima::distributionRoot());
+            m_localTest.root = Niijima::distributionRoot(root->get().toString());
+        }
         m_settings->registerSetting("NiijimaHomeEnabled", true);
         m_settings->registerSetting(
             "NiijimaPackIndexUrl",
-            BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher")
-                ? Niijima::distributionRoot() + QStringLiteral("packs/latest.json")
+            niijima
+                ? m_localTest.root + QStringLiteral("packs/latest.json")
                 : QString());
         m_settings->registerSetting("NiijimaPackVersionId", QString());
         m_settings->registerSetting("NiijimaPackChannel", QStringLiteral("master"));
@@ -903,8 +909,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
             // Niijima's static mirror matches the archive's top-level directory after extraction.
             // Registration defaults preserve saved custom URLs and explicitly empty (upstream) values.
-            const bool niijima = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher");
-            const QString mirrorRoot = Niijima::distributionRoot() + QStringLiteral("niijima-mirror/");
+            const QString mirrorRoot = m_localTest.root + QStringLiteral("niijima-mirror/");
 
             // Meta URL
             resetIfInvalid(m_settings->registerSetting("MetaURLOverride", niijima ? mirrorRoot + "meta/v1/" : QString()).get());
@@ -912,6 +917,16 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
             // Resource URL
             resetIfInvalid(
                 m_settings->registerSetting({ "ResourceURLOverride", "ResourceURL" }, niijima ? mirrorRoot + "assets/" : QString()).get());
+
+            if (niijima) {
+                // Drop saved official defaults so future root changes also apply to existing profiles.
+                for (const auto* key : { "NiijimaPackIndexUrl", "MetaURLOverride", "ResourceURLOverride" }) {
+                    const auto setting = m_settings->getSetting(key);
+                    const auto saved = setting->get().toString();
+                    if (saved != setting->defValue().toString() && m_localTest.distributionUrl(QUrl(saved)) == QUrl(setting->defValue().toString()))
+                        setting->reset();
+                }
+            }
 
             // Legacy FML libs URL
             resetIfInvalid(m_settings->registerSetting("LegacyFMLLibsURLOverride", "").get());
@@ -975,8 +990,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     // initialize network access and proxy setup
     {
         if (BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher"))
-            m_localTest = Niijima::LocalTest::load(applicationDirPath() + QStringLiteral("/niijima-local-test.json"));
-        m_network.reset(new Niijima::LocalTestNetwork(m_localTest));
+            m_network.reset(new Niijima::LocalTestNetwork(m_localTest));
+        else
+            m_network.reset(new QNetworkAccessManager);
         QString proxyTypeStr = settings()->get("ProxyType").toString();
         QString addr = settings()->get("ProxyAddr").toString();
         int port = settings()->get("ProxyPort").value<qint16>();
@@ -1920,7 +1936,7 @@ void Application::on_windowClose()
     if (mainWindow) {
         m_mainWindow = nullptr;
         if (m_niijimaHome && m_niijimaHome->isHidden())
-            m_niijimaHome->exitWithPrism();
+            m_niijimaHome->close();
     }
     auto* logWindow = qobject_cast<ViewLogWindow*>(sender());
     if (logWindow) {

@@ -6,9 +6,10 @@
 #include <QUrl>
 
 namespace Niijima {
-QString distributionRoot();
+QString distributionRoot(const QString& configured = {});
 
 struct LocalTest {
+    QString root = distributionRoot();
     bool enabled = false;
     bool testWarning = false;
     QString testWarningText;
@@ -17,6 +18,7 @@ struct LocalTest {
     QString error;
 
     static LocalTest load(const QString& filename);
+    QUrl distributionUrl(const QUrl& url) const;
     QUrl resolve(const QUrl& url) const;
 };
 

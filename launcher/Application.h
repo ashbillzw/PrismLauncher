@@ -148,6 +148,7 @@ class Application : public QApplication {
 
     QNetworkAccessManager* network();
     const Niijima::LocalTest& localTest() const { return m_localTest; }
+    const QString& niijimaDistributionRoot() const { return m_localTest.root; }
 
     HttpMetaCache* metacache();
 

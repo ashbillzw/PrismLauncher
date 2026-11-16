@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "niijima/PackError.h"
 #include "LocalTest.h"
 
 #include <QDir>
@@ -9,9 +10,29 @@
 #include <QNetworkRequest>
 
 namespace Niijima {
-QString distributionRoot()
+QString distributionRoot(const QString& configured)
 {
-    return QStringLiteral("https://mc1.ashbill.com:25572/synology-root/minecraft/niijima-launcher/");
+    const QUrl url(configured.trimmed(), QUrl::StrictMode);
+    if (url.scheme() != "https" || !url.isValid() || url.host().isEmpty() || !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment())
+        return QStringLiteral("https://mc.ashbill.com/launcher/");
+    return url.toString(QUrl::StripTrailingSlash | QUrl::FullyEncoded) + '/';
+}
+
+QUrl LocalTest::distributionUrl(const QUrl& url) const
+{
+    // Published component metadata and older caches contain absolute download URLs.
+    static const QByteArray official = distributionRoot().toLatin1();
+    static const QByteArray previous = "https://mc1.ashbill.com:25572/synology-root/minecraft/niijima-launcher/";
+    const QByteArray encoded = url.toEncoded();
+    const QByteArray target = root.toLatin1();
+    for (const auto* prefix : { &official, &previous }) {
+        if (encoded.startsWith(*prefix)) {
+            if (target.size() >= prefix->size() && encoded.startsWith(target))
+                return url;
+            return QUrl::fromEncoded(target + encoded.mid(prefix->size()));
+        }
+    }
+    return url;
 }
 
 LocalTest LocalTest::load(const QString& filename)
@@ -22,10 +43,16 @@ LocalTest LocalTest::load(const QString& filename)
     config.enabled = true;
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly)) {
-        config.error = QStringLiteral("无法读取本地测试配置：%1").arg(filename);
+        qWarning() << "Cannot open local test config:" << filename << file.errorString();
+        config.error = QStringLiteral("无法读取本地测试配置，或配置不正确。");
         return config;
     }
-    const auto document = QJsonDocument::fromJson(file.readAll());
+    QJsonParseError parseError;
+    const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (!document.isObject()) {
+        config.error = packError(2002, QStringLiteral("Invalid local test JSON object in %1: %2").arg(filename, parseError.errorString()));
+        return config;
+    }
     const auto object = document.object();
     const auto warning = object.value("testWarning");
     config.testWarningText = warning.toString();
@@ -33,25 +60,27 @@ LocalTest LocalTest::load(const QString& filename)
     const QDir directory = QFileInfo(filename).absoluteDir();
     config.packs = directory.absoluteFilePath(object.value("packs").toString());
     config.mirror = directory.absoluteFilePath(object.value("mirror").toString());
-    if (!document.isObject() || object.value("packs").toString().isEmpty() || object.value("mirror").toString().isEmpty() ||
+    if (object.value("packs").toString().isEmpty() || object.value("mirror").toString().isEmpty() ||
         !QFileInfo(QDir(config.packs).filePath("latest.json")).isFile() || !QFileInfo(QDir(config.mirror).filePath("meta/v1/index.json")).isFile() ||
         !QDir(config.mirror).exists("assets") || !QDir(config.mirror).exists("files")) {
-        config.error = QStringLiteral("本地测试配置无效，请检查 packs/latest.json 和 mirror 目录：%1").arg(filename);
+        qWarning() << "Invalid local test paths in" << filename << "packs:" << config.packs << "mirror:" << config.mirror;
+        config.error = QStringLiteral("无法读取本地测试配置，或配置不正确。");
     }
     return config;
 }
 
-QUrl LocalTest::resolve(const QUrl& url) const
+QUrl LocalTest::resolve(const QUrl& requested) const
 {
+    const QUrl url = distributionUrl(requested);
     if (!enabled)
         return url;
-    const QUrl root(distributionRoot());
-    if (url.scheme() != root.scheme() || url.authority() != root.authority() || !url.path().startsWith(root.path()))
+    const QUrl base(root);
+    if (url.scheme() != base.scheme() || url.authority() != base.authority() || !url.path().startsWith(base.path()))
         return url;
     // An invalid local setup must fail locally, not silently contact the production distribution.
     if (!error.isEmpty())
         return QUrl(QStringLiteral("file:"));
-    const QString relative = url.path().mid(root.path().size());
+    const QString relative = url.path().mid(base.path().size());
     if (QDir::isAbsolutePath(relative) || relative.contains('\\') || relative.split('/').contains(".."))
         return QUrl(QStringLiteral("file:"));
     if (relative.startsWith("packs/"))

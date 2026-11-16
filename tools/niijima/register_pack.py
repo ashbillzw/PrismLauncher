@@ -45,9 +45,11 @@ def channel_table(table):
 def register(source, packs, registry=REPO_INDEX, channel="master", pack_id=None):
     with ZipFile(source) as archive:
         version = read_json(archive.read(INDEX))["versionId"]
+        if archive.namelist().count(MARKER) != 1:
+            raise ValueError("Expected one Niijima pack marker")
         metadata = read_json(archive.read(MARKER))
         payload = payload_entries(archive)
-        if archive.namelist().count(MARKER) != 1 or metadata.get("token") != 114514:
+        if not isinstance(metadata, dict):
             raise ValueError("Missing or invalid Niijima pack marker")
     if not channel or not all(c.isascii() and (c.isalnum() or c in "-_") for c in channel):
         raise ValueError("Invalid channel name")
@@ -82,13 +84,16 @@ def register(source, packs, registry=REPO_INDEX, channel="master", pack_id=None)
             key = explicit
         if not 0 < int(key) < 2**64 or metadata.get("pack-id", key) != key or metadata.get("channel", channel) != channel:
             raise ValueError("Invalid or mismatched pack-id")
+        metadata.pop("token", None)
         metadata["pack-id"] = key
         if channel != "master":
             metadata["channel"] = channel
         work = Path(work)
         if target.exists():
             with ZipFile(target) as archive:
-                if read_json(archive.read(MARKER)) != metadata or payload_entries(archive) != payload:
+                existing = read_json(archive.read(MARKER))
+                existing.pop("token", None)
+                if existing != metadata or payload_entries(archive) != payload:
                     raise ValueError("Existing distribution ZIP does not match the registration")
         else:
             stage = work / filename

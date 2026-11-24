@@ -594,8 +594,13 @@ Niijima::HeapMemory MinecraftInstance::heapMemory()
     const bool automatic = BuildConfig.LAUNCHER_APPID == QStringLiteral("com.ashbill.NiijimaLauncher") &&
                            settings()->get("AutomaticMemory").toBool();
     // Read the current machine on demand, including every launch; do not persist the result.
-    return Niijima::heapMemory(automatic, automatic ? SysInfo::defaultMaxJvmMem() : 0,
-                              settings()->get("MinMemAlloc").toInt(), settings()->get("MaxMemAlloc").toInt());
+    auto heap = Niijima::heapMemory(automatic, automatic ? SysInfo::defaultMaxJvmMem() : 0,
+                                    settings()->get("MinMemAlloc").toInt(), settings()->get("MaxMemAlloc").toInt());
+    if (int cap = property("niijimaTestHeapCap").toInt(); cap > 0) {
+        heap.maximumMiB = std::min(heap.maximumMiB, cap);
+        heap.minimumMiB = std::min(heap.minimumMiB, heap.maximumMiB);
+    }
+    return heap;
 }
 
 QStringList MinecraftInstance::javaArguments()

@@ -47,6 +47,10 @@ void EnsureAvailableMemory::executeTask()
             break;
     }
 
+    if (m_instance->property("niijimaTestHeapCap").isValid()) {
+        emitFailed(text.section('\n', 0, 0));
+        return;
+    }
     bool shouldAbort = false;
 
     if (m_instance->settings()->get("LowMemWarning").toBool()) {
@@ -78,6 +82,10 @@ void EnsureAvailableMemory::executeTask()
     const uint64_t max = m_instance->heapMemory().maximumMiB;
 
     if (static_cast<double>(max) * 0.7 > static_cast<double>(available)) {
+        if (m_instance->property("niijimaTestHeapCap").isValid()) {
+            emitFailed(QStringLiteral("Insufficient free memory for test: %1 MiB available, %2 MiB maximum heap").arg(available).arg(max));
+            return;
+        }
         bool shouldAbort = false;
 
         if (m_instance->settings()->get("LowMemWarning").toBool()) {

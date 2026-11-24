@@ -307,6 +307,8 @@ class Application : public QApplication {
     QString m_detectedGLFWPath;
     QString m_detectedOpenALPath;
     QString m_detectedSDLPath;
+    QString m_testPackId;
+    QString m_testRunDir;
     QString m_instanceIdToLaunch;
     QString m_serverToJoin;
     QString m_worldToJoin;

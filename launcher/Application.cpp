@@ -110,6 +110,8 @@
 #include <utility>
 
 #include "InstanceList.h"
+#include "niijima/TestInstall.h"
+#include "niijima/PackIndex.h"
 #include "MTPixmapCache.h"
 
 #include <minecraft/auth/AccountList.h>
@@ -334,6 +336,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
           { { "w", "world" }, "Join the specified world on launch (only valid in combination with --launch)", "world" },
           { { "a", "profile" }, "Use the account specified by its profile name (only valid in combination with --launch)", "profile" },
           { { "o", "offline" }, "Launch offline, with given player name (only valid in combination with --launch)", "offline" },
+          { "install-test", "Install a pinned local Niijima test release into a new instance", "pack-id" },
+          { "test-result-dir", "Existing directory for the installation result", "directory" },
           { "alive", "Write a small '" + g_liveCheckFile + "' file after the launcher starts" },
           { "show-window", "Show the main launcher window (useful in combination with --launch)" },
           { { "I", "import" }, "Import instance or resource from specified local path or URL", "url" },
@@ -346,6 +350,17 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     parser.process(arguments());
 
+    if (parser.isSet("install-test") || parser.isSet("test-result-dir")) {
+        m_testPackId = parser.value("install-test");
+        const QFileInfo directory(parser.value("test-result-dir"));
+        if (!Niijima::parsePackId(m_testPackId) || !directory.isDir() || !parser.isSet("test-result-dir") ||
+            directory.filePath().isEmpty() || QFile::exists(QDir(directory.absoluteFilePath()).filePath("installed.json"))) {
+            std::cerr << "Expected a positive pack ID and a fresh result directory\n";
+            m_status = Application::Failed;
+            return;
+        }
+        m_testRunDir = directory.absoluteFilePath();
+    }
     m_instanceIdToLaunch = parser.value("launch");
     m_serverToJoin = parser.value("server");
     m_worldToJoin = parser.value("world");
@@ -473,7 +488,13 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
             bool sentMessage = false;
             int timeout = 2000;
 
-            if (m_instanceIdToLaunch.isEmpty()) {
+            if (!m_testPackId.isEmpty()) {
+                ApplicationMessage install;
+                install.command = "install-test";
+                install.args["id"] = m_testPackId;
+                install.args["directory"] = m_testRunDir;
+                sentMessage = m_peerInstance->sendMessage(install.serialize(), timeout);
+            } else if (m_instanceIdToLaunch.isEmpty()) {
                 ApplicationMessage activate;
                 activate.command = "activate";
                 sentMessage = m_peerInstance->sendMessage(activate.serialize(), timeout);
@@ -1313,7 +1334,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     }
 
     // the setup wizard applies the selected theme itself before it is shown
-    if (!createSetupWizard()) {
+    if (m_testPackId.isEmpty() && !createSetupWizard()) {
         m_themeManager->applyCurrentlySelectedTheme(true);
     }
     performMainStartupAction();
@@ -1452,6 +1473,10 @@ bool Application::event(QEvent* event)
 void Application::performMainStartupAction()
 {
     m_status = Application::Initialized;
+    if (!m_testPackId.isEmpty()) {
+        Niijima::installTest(m_testPackId, m_testRunDir, true);
+        return;
+    }
     if (!m_instanceIdToLaunch.isEmpty()) {
         auto* inst = instances()->getInstanceById(m_instanceIdToLaunch);
         if (inst) {
@@ -1560,7 +1585,9 @@ void Application::messageReceived(const QByteArray& message)
         }
     }
 
-    if (command == "activate") {
+    if (command == "install-test") {
+        Niijima::installTest(received.args["id"], received.args["directory"], false);
+    } else if (command == "activate") {
         showMainWindow();
     } else if (command == "import") {
         QString url = received.args["url"];
@@ -1686,6 +1713,7 @@ bool Application::launch(MinecraftInstance* instance,
         } else if (m_niijimaHome) {
             controller->setParentWidget(m_niijimaHome);
         }
+        Niijima::observeTestLaunch(controller.get());
         connect(controller.get(), &LaunchController::finished, this, &Application::controllerFinished);
         addRunningInstance();
         QMetaObject::invokeMethod(controller.get(), &Task::start, Qt::QueuedConnection);

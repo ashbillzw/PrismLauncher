@@ -52,6 +52,7 @@ set(CORE_SOURCES
     niijima/FtbMapMerge.cpp
     niijima/InstalledPacks.h
     niijima/InstalledPacks.cpp
+    niijima/TestInstall.cpp
     niijima/HomeUpdateState.h
     niijima/PackIndex.h
     niijima/PackIndex.cpp

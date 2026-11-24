@@ -137,10 +137,16 @@ void BaseEntityLoadTask::executeTask()
         }
     }
     // if we need remote update, run the update task
-    auto wasLoadedOffline = m_entity->m_loadStatus != BaseEntity::LoadStatus::NotLoaded && m_mode == Net::Mode::Offline;
+    if (m_mode == Net::Mode::Offline) {
+        if (m_entity->m_loadStatus == BaseEntity::LoadStatus::NotLoaded)
+            emitFailed(QStringLiteral("Missing cached metadata: %1").arg(fname));
+        else
+            emitSucceeded();
+        return;
+    }
     // if has is not present allways fetch from remote(e.g. the main index file), else only fetch if hash doesn't match
     auto wasLoadedRemote = m_entity->m_sha256.isEmpty() ? m_entity->m_loadStatus == BaseEntity::LoadStatus::Remote : hashMatches;
-    if (wasLoadedOffline || (wasLoadedRemote && !m_forceReload)) {
+    if (wasLoadedRemote && !m_forceReload) {
         emitSucceeded();
         return;
     }

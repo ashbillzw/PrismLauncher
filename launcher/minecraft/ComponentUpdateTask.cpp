@@ -132,12 +132,15 @@ static LoadResult loadComponent(ComponentPtr component, Task::Ptr& loadTask, Net
             result = LoadResult::LoadedLocal;
         } else {
             loadTask = APPLICATION->metadataIndex()->loadVersion(component->m_uid, component->m_version, netmode);
-            if (netmode == Net::Mode::Online)
+            if (netmode == Net::Mode::Offline) {
+                // The offline version task only parses the cached JSON and completes synchronously.
+                loadTask->start();
+                component->m_loaded = loadTask->wasSuccessful();
+                loadTask.reset();
+                result = component->m_loaded ? LoadResult::LoadedLocal : LoadResult::Failed;
+            } else {
                 result = LoadResult::RequiresRemote;
-            else if (metaVersion->isLoaded())
-                result = LoadResult::LoadedLocal;
-            else
-                result = LoadResult::Failed;
+            }
         }
     }
     return result;
@@ -232,7 +235,7 @@ void ComponentUpdateTask::loadComponents()
         case LoadResult::LoadedLocal: {
             // Everything got loaded. Advance to dependency resolution.
             performUpdateActions();
-            resolveDependencies(d->mode == Mode::Launch || d->netmode == Net::Mode::Offline);
+            resolveDependencies(d->mode == Mode::Launch);
             return;
         }
         case LoadResult::RequiresRemote: {

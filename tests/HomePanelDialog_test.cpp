@@ -6,6 +6,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPainter>
+#include <QPointer>
+#include <QPauseAnimation>
 #include <QTimer>
 #include <QTest>
 #include "ui/dialogs/MigrationDialog.h"
@@ -24,6 +26,39 @@ class HomePanelDialogTest : public QObject {
     };
 
 private slots:
+    void migrationOfferIdleTimeout()
+    {
+        QWidget home;
+        home.resize(640, 400);
+        QPushButton outside(&home);
+        outside.move(400, 300);
+        home.show();
+        home.activateWindow();
+        outside.setFocus();
+        bool confirmed = false;
+        QPointer<QFrame> offer = migrationOffer(&home, 47, [&] { confirmed = true; });
+        QTest::mouseMove(&outside);
+        auto* delay = offer->findChild<QPauseAnimation*>();
+        QVERIFY(delay);
+        QCOMPARE(delay->duration(), 10000);
+        QTRY_COMPARE(delay->state(), QAbstractAnimation::Running);
+
+        QTest::mouseMove(offer, QPoint(3, 3));
+        QTRY_COMPARE(delay->state(), QAbstractAnimation::Paused);
+        auto* cancel = offer->findChild<QPushButton*>("dismiss");
+        QVERIFY(cancel);
+        cancel->setFocus();
+        QTest::mouseMove(&outside);
+        QTRY_VERIFY(!offer->underMouse());
+        QCOMPARE(delay->state(), QAbstractAnimation::Paused);
+        delay->setCurrentTime(9600);
+        outside.setFocus();
+        QTRY_COMPARE(delay->state(), QAbstractAnimation::Running);
+        QVERIFY(delay->currentTime() >= 9600);
+        QTRY_VERIFY_WITH_TIMEOUT(offer.isNull(), 1500);
+        QVERIFY(!confirmed);
+    }
+
     void confirmInstallExit()
     {
         QWidget home;

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "MigrationDialog.h"
+#include <QApplication>
+#include <QPauseAnimation>
 #include <QComboBox>
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -35,6 +37,45 @@ constexpr auto panelStyle = R"(
     QPushButton#dismiss { background: transparent; color: #665b50; border-color: transparent; }
     QPushButton#dismiss:hover, QPushButton#dismiss:focus { background: #f4eee5; border-color: #dbcdba; }
 )";
+class MigrationOfferClip : public QFrame {
+public:
+    explicit MigrationOfferClip(QWidget* home) : QFrame(home)
+    {
+        connect(qApp, &QApplication::focusChanged, this, [this] { updateCountdown(); });
+    }
+
+    void startCountdown()
+    {
+        countdown.start();
+        updateCountdown();
+    }
+
+    QPauseAnimation countdown{ 10000, this };
+
+protected:
+    void enterEvent(QEnterEvent* event) override
+    {
+        QFrame::enterEvent(event);
+        updateCountdown();
+    }
+
+    void leaveEvent(QEvent* event) override
+    {
+        QFrame::leaveEvent(event);
+        updateCountdown();
+    }
+
+private:
+    void updateCountdown()
+    {
+        const bool interacting = underMouse() || isAncestorOf(QApplication::focusWidget());
+        if (interacting && countdown.state() == QAbstractAnimation::Running)
+            countdown.pause();
+        else if (!interacting && countdown.state() == QAbstractAnimation::Paused)
+            countdown.resume();
+    }
+};
+
 QFrame* panel(QWidget* parent)
 {
     auto* frame = new QFrame(parent);
@@ -73,7 +114,7 @@ QVBoxLayout* panelBody(QFrame* frame, QLabel* title)
 
 QFrame* migrationOffer(QWidget* home, int top, std::function<void()> confirmed)
 {
-    auto* clip = new QFrame(home);
+    auto* clip = new MigrationOfferClip(home);
     clip->setAttribute(Qt::WA_DeleteOnClose);
     auto* frame = panel(clip);
     frame->setProperty("attached", true);
@@ -101,7 +142,17 @@ QFrame* migrationOffer(QWidget* home, int top, std::function<void()> confirmed)
     slide->setEasingCurve(QEasingCurve::OutCubic);
     clip->show();
     clip->raise();
-    slide->start(QAbstractAnimation::DeleteWhenStopped);
+    QObject::connect(slide, &QAbstractAnimation::finished, clip, [clip, slide] {
+        if (slide->direction() == QAbstractAnimation::Forward)
+            clip->startCountdown();
+        else
+            clip->close();
+    });
+    QObject::connect(&clip->countdown, &QAbstractAnimation::finished, slide, [slide] {
+        slide->setDirection(QAbstractAnimation::Backward);
+        slide->start();
+    });
+    slide->start();
     return clip;
 }
 

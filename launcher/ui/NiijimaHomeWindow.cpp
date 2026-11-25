@@ -930,8 +930,9 @@ void NiijimaHomeWindow::startImport(const QUrl& url)
     auto* importer = new InstanceImportTask(url, false, this);
     importer->setCreateNewInstance(true);
     importer->setNiijimaRelease(true);
-    importer->setIcon(QStringLiteral("default"));
-    importer->setGroup(QStringLiteral("新岛铁道"));
+    const bool testRelease = release && release->version.contains(".test");
+    importer->setIcon(testRelease ? QStringLiteral("niijima-test") : QStringLiteral("default"));
+    importer->setGroup(testRelease ? QStringLiteral("新岛铁道-测试") : QStringLiteral("新岛铁道"));
     m_import = importer;
     if (m_migrationOffer)
         m_migrationOffer->close();

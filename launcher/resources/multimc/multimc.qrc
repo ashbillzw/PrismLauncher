@@ -18,6 +18,8 @@
 
         <!-- Modrinth logo icon -->
         <file>scalable/instances/modrinth.svg</file>
+        <file>scalable/instances/niijima-test.svg</file>
+        <file>scalable/instances/niijima-auto-test.svg</file>
 
         <!-- A proxy icon. Our own. SSSsss -->
         <file>scalable/proxy.svg</file>

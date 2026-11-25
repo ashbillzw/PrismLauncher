@@ -78,7 +78,8 @@ void Niijima::installTest(const QString& packId, const QString& directory, bool 
     auto* importer = new InstanceImportTask(zip, false);
     importer->setCreateNewInstance(true);
     importer->setNiijimaRelease(true);
-    importer->setGroup(QStringLiteral("新岛铁道-测试"));
+    importer->setGroup(QStringLiteral("自动测试"));
+    importer->setIcon(QStringLiteral("niijima-auto-test"));
     auto* task = APPLICATION->instances()->wrapInstanceTask(importer);
     auto installed = std::make_shared<QString>();
     QObject::connect(APPLICATION->instances(), &InstanceList::instanceCommitted, task,

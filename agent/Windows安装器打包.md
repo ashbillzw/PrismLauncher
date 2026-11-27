@@ -156,3 +156,5 @@ NiijimaLauncher 署名为 AshBill 和 GPT-6 Astra（AI 开发协作）。源码�
 - 按既有授权，构建完成后分字体资源、首页与版本索引两组本地提交。源码提交晚于构建，程序内嵌 Git HEAD 为构建时值；发布前由用户 push 对应源码，agent 不 push。
 
 2026-11-17 本机实测发现，更新发行安装器和独立 runtime 后，常用 `install-niijima/niijima-launcher.exe` 仍可能是旧构建。交付给本机直接测试时，在进程退出后同步并比对这个 EXE；保留该目录中的本地测试 JSON。迁移与渠道对话框的背景沿用首页截图的透明轮廓，离屏回归为 `HomePanelDialog`。
+
+2026-11-28 本机测试版默认替换 install-niijima/niijima-launcher.exe，继续使用原快捷方式。若旧进程占用文件，等它正常退出再替换。交付前比对原入口与 Release 的 SHA-256。

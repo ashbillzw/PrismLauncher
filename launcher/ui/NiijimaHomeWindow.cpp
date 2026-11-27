@@ -57,6 +57,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include "niijima/StartupFocusWin.h"
 #endif
 
 namespace {
@@ -791,11 +792,11 @@ void NiijimaHomeWindow::watchGameWindow(MinecraftInstance* instance)
         }, reinterpret_cast<LPARAM>(&search));
         if (!search.window)
             return;
-        AllowSetForegroundWindow(search.pid);
-        SetForegroundWindow(search.window);
-        if (isVisible())
-            showMinimized();
+        timer->stop();
         timer->deleteLater();
+
+        if (Niijima::handoffStartupFocus(search.window, search.pid) && isVisible())
+            showMinimized();
     });
     timer->start(500);
 #else

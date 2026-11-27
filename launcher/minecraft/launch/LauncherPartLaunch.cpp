@@ -43,6 +43,10 @@
 #include "launch/LaunchTask.h"
 #include "minecraft/MinecraftInstance.h"
 
+#ifdef Q_OS_WIN
+#include "niijima/StartupFocusWin.h"
+#endif
+
 #if defined(Q_OS_LINUX) && defined(ENABLE_GAMEMODE)
 #include "gamemode_client.h"
 #endif
@@ -198,6 +202,10 @@ void LauncherPartLaunch::on_state(LoggedProcess::State state)
         case LoggedProcess::Running:
             emit logLine(QString("Minecraft process ID: %1\n\n").arg(m_process.processId()), MessageLevel::Launcher);
             m_parent->setPid(m_process.processId());
+#ifdef Q_OS_WIN
+            // The Java bootstrap is still waiting for its launch script.
+            Niijima::observeStartupFocus(m_process);
+#endif
             // send the launch script to the launcher part
             m_process.write(m_launchScript.toUtf8());
 
